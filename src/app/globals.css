@@ -1,26 +1,105 @@
 @import "tailwindcss";
 
+/* ========================================
+   VERGER & COM - Palette Fruit Ninja
+   Fond sombre + couleurs vives saturées
+   ======================================== */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Couleurs de fond */
+  --background: #0a0a0a;
+  --background-card: #111111;
+  --background-elevated: #1a1a1a;
+
+  /* Texte */
+  --foreground: #ffffff;
+  --foreground-muted: #888888;
+  --foreground-subtle: #555555;
+
+  /* Palette Fruit Ninja */
+  --fruit-red: #E63946;
+  --fruit-orange: #FF6B35;
+  --fruit-yellow: #F7C548;
+  --fruit-green: #4ECB71;
+
+  /* Accents */
+  --accent-primary: var(--fruit-green);
+  --accent-secondary: var(--fruit-orange);
+
+  /* États */
+  --success: var(--fruit-green);
+  --warning: var(--fruit-yellow);
+  --error: var(--fruit-red);
+
+  /* Bordures */
+  --border: #222222;
+  --border-hover: #333333;
 }
 
 @theme inline {
+  /* Fond */
   --color-background: var(--background);
+  --color-background-card: var(--background-card);
+  --color-background-elevated: var(--background-elevated);
+
+  /* Texte */
   --color-foreground: var(--foreground);
+  --color-foreground-muted: var(--foreground-muted);
+  --color-foreground-subtle: var(--foreground-subtle);
+
+  /* Fruits */
+  --color-fruit-red: var(--fruit-red);
+  --color-fruit-orange: var(--fruit-orange);
+  --color-fruit-yellow: var(--fruit-yellow);
+  --color-fruit-green: var(--fruit-green);
+
+  /* Accents */
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-secondary: var(--accent-secondary);
+
+  /* États */
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+
+  /* Bordures */
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+
+  /* Fonts */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Reset body */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+/* Scrollbar custom (Fruit Ninja style) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-hover);
+}
+
+/* Selection */
+::selection {
+  background: var(--fruit-green);
+  color: var(--background);
 }

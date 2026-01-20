@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://verger-et-com.vercel.app/sitemap.xml

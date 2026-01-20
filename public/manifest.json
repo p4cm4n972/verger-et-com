@@ -1,0 +1,16 @@
+{
+  "name": "Verger & Com",
+  "short_name": "Verger",
+  "description": "Paniers de fruits frais pour entreprises",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#22c55e",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
