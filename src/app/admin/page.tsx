@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 
@@ -29,10 +30,43 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<string>('all');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
-    fetchOrders();
+    checkAuth();
   }, []);
+
+  const checkAuth = async () => {
+    const token = sessionStorage.getItem('admin_token');
+
+    if (!token) {
+      router.push('/admin/login');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/admin/auth', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        sessionStorage.removeItem('admin_token');
+        router.push('/admin/login');
+        return;
+      }
+
+      setIsAuthenticated(true);
+      fetchOrders();
+    } catch {
+      router.push('/admin/login');
+    }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('admin_token');
+    router.push('/admin/login');
+  };
 
   const fetchOrders = async () => {
     try {
@@ -84,6 +118,18 @@ export default function AdminPage() {
     revenue: orders.filter(o => o.status !== 'cancelled').reduce((sum, o) => sum + o.total, 0),
   };
 
+  // Afficher un loader pendant la vérification de l'auth
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🔐</div>
+          <p className="text-foreground-muted">Vérification...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -93,12 +139,20 @@ export default function AdminPage() {
             <Link href="/" className="text-2xl">🧺</Link>
             <h1 className="text-xl font-bold text-white">Admin - Commandes</h1>
           </div>
-          <Link
-            href="/"
-            className="px-4 py-2 text-foreground-muted hover:text-white transition-colors"
-          >
-            ← Retour au site
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="px-4 py-2 text-foreground-muted hover:text-white transition-colors"
+            >
+              ← Retour au site
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-fruit-red/20 text-fruit-red rounded-lg hover:bg-fruit-red/30 transition-colors"
+            >
+              Déconnexion
+            </button>
+          </div>
         </div>
       </header>
 
