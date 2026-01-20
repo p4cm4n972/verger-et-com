@@ -1,47 +1,99 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
 
+const navLinks = [
+  { href: '/', label: 'Accueil' },
+  { href: '/paniers', label: 'Paniers' },
+  { href: '/jus', label: 'Jus' },
+  { href: '/fruits-secs', label: 'Fruits Secs' },
+  { href: '/contact', label: 'Contact' },
+];
+
 export function Header() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <Link href="/">
+        <Link href="/" onClick={() => setIsMenuOpen(false)}>
           <Logo size="sm" />
         </Link>
+
+        {/* Navigation desktop */}
         <nav className="hidden md:flex items-center gap-8">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-foreground-muted hover:text-white transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-4">
+          {/* Bouton Commander (desktop) */}
           <Link
-            href="/"
-            className="text-foreground-muted hover:text-white transition-colors"
+            href="/commander"
+            className="hidden sm:block px-5 py-2 bg-fruit-green text-background font-medium rounded-full hover:bg-fruit-green/90 transition-colors"
           >
-            Accueil
+            Commander
           </Link>
-          <Link
-            href="/paniers"
-            className="text-foreground-muted hover:text-white transition-colors"
+
+          {/* Bouton hamburger (mobile) */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden w-10 h-10 flex flex-col items-center justify-center gap-1.5"
+            aria-label="Menu"
           >
-            Paniers
-          </Link>
+            <span
+              className={`w-6 h-0.5 bg-white transition-all duration-300 ${
+                isMenuOpen ? 'rotate-45 translate-y-2' : ''
+              }`}
+            />
+            <span
+              className={`w-6 h-0.5 bg-white transition-all duration-300 ${
+                isMenuOpen ? 'opacity-0' : ''
+              }`}
+            />
+            <span
+              className={`w-6 h-0.5 bg-white transition-all duration-300 ${
+                isMenuOpen ? '-rotate-45 -translate-y-2' : ''
+              }`}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Menu mobile */}
+      <div
+        className={`md:hidden fixed inset-0 top-[73px] bg-background/95 backdrop-blur-lg transition-all duration-300 ${
+          isMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible'
+        }`}
+      >
+        <nav className="flex flex-col items-center justify-center h-full gap-8">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setIsMenuOpen(false)}
+              className="text-2xl text-white hover:text-fruit-green transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
           <Link
-            href="/jus"
-            className="text-foreground-muted hover:text-white transition-colors"
+            href="/commander"
+            onClick={() => setIsMenuOpen(false)}
+            className="mt-4 px-8 py-3 bg-fruit-green text-background font-semibold rounded-full text-lg hover:bg-fruit-green/90 transition-colors"
           >
-            Jus
-          </Link>
-          <Link
-            href="/fruits-secs"
-            className="text-foreground-muted hover:text-white transition-colors"
-          >
-            Fruits Secs
+            Commander
           </Link>
         </nav>
-        <Link
-          href="/commander"
-          className="px-5 py-2 bg-fruit-green text-background font-medium rounded-full hover:bg-fruit-green/90 transition-colors"
-        >
-          Commander
-        </Link>
       </div>
     </header>
   );
