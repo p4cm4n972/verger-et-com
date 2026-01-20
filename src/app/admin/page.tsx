@@ -37,7 +37,8 @@ export default function AdminPage() {
   const fetchOrders = async () => {
     try {
       const supabase = createClient();
-      const { data, error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase as any)
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false });
@@ -54,7 +55,8 @@ export default function AdminPage() {
   const updateStatus = async (orderId: string, newStatus: string) => {
     try {
       const supabase = createClient();
-      const { error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error } = await (supabase as any)
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
