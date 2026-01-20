@@ -88,18 +88,28 @@ export default function AdminPage() {
 
   const updateStatus = async (orderId: string, newStatus: string) => {
     try {
-      const supabase = createClient();
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase as any)
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
+      const token = sessionStorage.getItem('admin_token');
+      const response = await fetch(`/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        throw new Error('Erreur de mise à jour');
+      }
 
       setOrders(orders.map(order =>
         order.id === orderId ? { ...order, status: newStatus as Order['status'] } : order
       ));
+
+      // Notification de succès
+      if (['preparing', 'delivered', 'cancelled'].includes(newStatus)) {
+        alert('Statut mis à jour et email envoyé au client');
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erreur de mise à jour');
     }

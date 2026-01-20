@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { constructWebhookEvent, stripe } from '@/lib/stripe/server';
 import { createClient } from '@/lib/supabase/server';
+import { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from '@/lib/email';
 import Stripe from 'stripe';
 
 // Désactiver le body parsing de Next.js pour les webhooks
@@ -101,7 +102,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     total,
     delivery_date: deliveryDate || new Date().toISOString().split('T')[0],
     delivery_address: deliveryAddress,
-    notes: `Paiement Stripe: ${session.payment_intent}`,
+    notes: `Paiement Stripe: ${session.payment_intent} | Email: ${session.customer_email || 'N/A'}`,
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -148,6 +149,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const orderId = order ? (order as { id: string }).id : 'unknown';
   console.log(`Commande créée: ${orderId} pour ${session.customer_email}`);
+
+  // Envoyer les emails de notification
+  const emailData = {
+    orderId,
+    customerEmail: session.customer_email || '',
+    total,
+    items: items.map((item: { productId: string; quantity: number }) => ({
+      name: item.productId.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      quantity: item.quantity,
+      price: Math.round(total / items.length), // Approximation
+    })),
+    deliveryAddress,
+    deliveryDate,
+  };
+
+  // Email de confirmation au client
+  if (session.customer_email) {
+    await sendOrderConfirmationEmail(emailData);
+  }
+
+  // Notification à l'admin
+  await sendNewOrderNotificationEmail(emailData);
 }
 
 // Formater une adresse Stripe
