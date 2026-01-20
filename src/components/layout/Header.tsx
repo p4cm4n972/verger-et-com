@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
+import { useCart } from '@/lib/cart/CartContext';
 
 const navLinks = [
   { href: '/', label: 'Accueil' },
@@ -14,6 +15,7 @@ const navLinks = [
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { itemCount } = useCart();
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -39,9 +41,15 @@ export function Header() {
           {/* Bouton Commander (desktop) */}
           <Link
             href="/commander"
-            className="hidden sm:block px-5 py-2 bg-fruit-green text-background font-medium rounded-full hover:bg-fruit-green/90 transition-colors"
+            className="hidden sm:flex items-center gap-2 px-5 py-2 bg-fruit-green text-background font-medium rounded-full hover:bg-fruit-green/90 transition-colors relative"
           >
-            Commander
+            <span>🧺</span>
+            <span>Commander</span>
+            {itemCount > 0 && (
+              <span className="absolute -top-2 -right-2 w-5 h-5 bg-fruit-orange text-white text-xs font-bold rounded-full flex items-center justify-center">
+                {itemCount}
+              </span>
+            )}
           </Link>
 
           {/* Bouton hamburger (mobile) */}
@@ -89,9 +97,15 @@ export function Header() {
           <Link
             href="/commander"
             onClick={() => setIsMenuOpen(false)}
-            className="mt-4 px-8 py-3 bg-fruit-green text-background font-semibold rounded-full text-lg hover:bg-fruit-green/90 transition-colors"
+            className="mt-4 px-8 py-3 bg-fruit-green text-background font-semibold rounded-full text-lg hover:bg-fruit-green/90 transition-colors flex items-center gap-2 relative"
           >
-            Commander
+            <span>🧺</span>
+            <span>Commander</span>
+            {itemCount > 0 && (
+              <span className="absolute -top-2 -right-2 w-6 h-6 bg-fruit-orange text-white text-sm font-bold rounded-full flex items-center justify-center">
+                {itemCount}
+              </span>
+            )}
           </Link>
         </nav>
       </div>
