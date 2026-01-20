@@ -12,6 +12,12 @@ export function Header() {
         </Link>
         <nav className="hidden md:flex items-center gap-8">
           <Link
+            href="/"
+            className="text-foreground-muted hover:text-white transition-colors"
+          >
+            Accueil
+          </Link>
+          <Link
             href="/paniers"
             className="text-foreground-muted hover:text-white transition-colors"
           >

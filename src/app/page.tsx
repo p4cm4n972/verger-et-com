@@ -36,7 +36,7 @@ export default function Home() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
-              href="/paniers"
+              href="/paniers/composer"
               className="px-8 py-4 bg-gradient-to-r from-fruit-green to-fruit-green/80 text-background font-semibold rounded-full text-lg hover:opacity-90 transition-all hover:scale-105 shadow-lg shadow-fruit-green/20"
             >
               Composer mon panier
@@ -152,7 +152,7 @@ export default function Home() {
                 Glissez-déposez vos fruits préférés et créez le panier idéal pour votre équipe.
               </p>
               <Link
-                href="/paniers"
+                href="/paniers/composer"
                 className="inline-block px-8 py-3 bg-gradient-to-r from-fruit-green to-fruit-green/80 text-background font-semibold rounded-full hover:opacity-90 transition-all shadow-lg shadow-fruit-green/20"
               >
                 Personnaliser mon panier
