@@ -60,7 +60,7 @@ export default function SuccessPage() {
                   <span className="text-fruit-yellow text-sm">3</span>
                 </span>
                 <span className="text-foreground-muted">
-                  Livraison à l'adresse indiquée dans les 24h ouvrées
+                  Livraison le lundi ou mardi selon votre choix
                 </span>
               </li>
             </ul>

@@ -23,7 +23,9 @@ interface CheckoutRequestItem {
 interface CheckoutRequest {
   items: CheckoutRequestItem[];
   customerEmail?: string;
+  customerPhone?: string;
   companyId?: string;
+  deliveryDay?: 'monday' | 'tuesday';
   deliveryDate?: string;
   deliveryAddress?: string;
 }
@@ -31,7 +33,7 @@ interface CheckoutRequest {
 export async function POST(request: NextRequest) {
   try {
     const body: CheckoutRequest = await request.json();
-    const { items, customerEmail, companyId, deliveryDate, deliveryAddress } = body;
+    const { items, customerEmail, customerPhone, companyId, deliveryDay, deliveryDate, deliveryAddress } = body;
 
     if (!items || items.length === 0) {
       return NextResponse.json(
@@ -60,6 +62,8 @@ export async function POST(request: NextRequest) {
     };
 
     if (companyId) metadata.companyId = companyId;
+    if (customerPhone) metadata.customerPhone = customerPhone;
+    if (deliveryDay) metadata.deliveryDay = deliveryDay;
     if (deliveryDate) metadata.deliveryDate = deliveryDate;
     if (deliveryAddress) metadata.deliveryAddress = deliveryAddress;
 

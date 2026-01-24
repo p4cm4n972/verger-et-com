@@ -296,8 +296,8 @@ export default function Home() {
             <div className="text-foreground-muted">Satisfaction client</div>
           </div>
           <div className="p-6 rounded-2xl bg-fruit-green/10 border border-fruit-green/20">
-            <div className="text-4xl font-bold text-fruit-green mb-2">24h</div>
-            <div className="text-foreground-muted">Délai de livraison</div>
+            <div className="text-4xl font-bold text-fruit-green mb-2">Lun/Mar</div>
+            <div className="text-foreground-muted">Livraison hebdo</div>
           </div>
         </div>
       </section>

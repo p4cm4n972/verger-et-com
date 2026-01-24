@@ -15,6 +15,18 @@ interface Order {
   delivery_date: string;
   delivery_address: string;
   notes: string;
+  customer_email: string;
+  preferred_delivery_day: 'monday' | 'tuesday' | null;
+  assigned_driver_id: string | null;
+  driver_status: 'pending' | 'accepted' | 'refused' | null;
+}
+
+interface Driver {
+  id: string;
+  name: string;
+  email: string;
+  telegram_chat_id: string | null;
+  is_active: boolean;
 }
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -25,12 +37,20 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   cancelled: { label: 'Annulée', color: 'bg-red-500/20 text-red-500' },
 };
 
+const driverStatusLabels: Record<string, { label: string; color: string }> = {
+  pending: { label: 'En attente', color: 'text-yellow-500' },
+  accepted: { label: 'Acceptée', color: 'text-green-500' },
+  refused: { label: 'Refusée', color: 'text-red-500' },
+};
+
 export default function AdminPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<string>('all');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeTab, setActiveTab] = useState<'orders' | 'drivers'>('orders');
   const router = useRouter();
 
   useEffect(() => {
@@ -58,9 +78,37 @@ export default function AdminPage() {
 
       setIsAuthenticated(true);
       fetchOrders();
+      fetchDrivers();
     } catch {
       router.push('/admin/login');
     }
+  };
+
+  const fetchDrivers = async () => {
+    try {
+      const supabase = createClient();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data } = await (supabase as any)
+        .from('users')
+        .select('id, name, email, telegram_chat_id, is_active')
+        .eq('role', 'driver')
+        .order('name', { ascending: true });
+
+      setDrivers(data || []);
+    } catch (err) {
+      console.error('Erreur fetch drivers:', err);
+    }
+  };
+
+  const getDriverName = (driverId: string | null) => {
+    if (!driverId) return null;
+    const driver = drivers.find(d => d.id === driverId);
+    return driver?.name || 'Livreur inconnu';
+  };
+
+  const formatDeliveryDay = (day: string | null) => {
+    if (!day) return '';
+    return day === 'monday' ? 'Lundi' : 'Mardi';
   };
 
   const handleLogout = () => {
@@ -147,7 +195,7 @@ export default function AdminPage() {
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link href="/" className="text-2xl">🧺</Link>
-            <h1 className="text-xl font-bold text-white">Admin - Commandes</h1>
+            <h1 className="text-xl font-bold text-white">Admin</h1>
           </div>
           <div className="flex items-center gap-4">
             <Link
@@ -164,9 +212,37 @@ export default function AdminPage() {
             </button>
           </div>
         </div>
+        {/* Tabs */}
+        <div className="max-w-7xl mx-auto px-6 pb-0">
+          <div className="flex gap-4 border-b border-border -mb-px">
+            <button
+              onClick={() => setActiveTab('orders')}
+              className={`px-4 py-3 font-medium transition-colors border-b-2 ${
+                activeTab === 'orders'
+                  ? 'text-fruit-green border-fruit-green'
+                  : 'text-foreground-muted border-transparent hover:text-white'
+              }`}
+            >
+              📦 Commandes
+            </button>
+            <button
+              onClick={() => setActiveTab('drivers')}
+              className={`px-4 py-3 font-medium transition-colors border-b-2 ${
+                activeTab === 'drivers'
+                  ? 'text-fruit-green border-fruit-green'
+                  : 'text-foreground-muted border-transparent hover:text-white'
+              }`}
+            >
+              🚚 Livreurs ({drivers.length})
+            </button>
+          </div>
+        </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Orders Tab */}
+        {activeTab === 'orders' && (
+        <>
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
           <div className="bg-background-card rounded-xl p-4 border border-border">
@@ -260,10 +336,28 @@ export default function AdminPage() {
                         minute: '2-digit'
                       })}</p>
                       {order.delivery_date && (
-                        <p>🚚 Livraison prévue: {new Date(order.delivery_date).toLocaleDateString('fr-FR')}</p>
+                        <p>
+                          🚚 Livraison: {formatDeliveryDay(order.preferred_delivery_day)} {new Date(order.delivery_date).toLocaleDateString('fr-FR')}
+                        </p>
+                      )}
+                      {order.customer_email && (
+                        <p>👤 {order.customer_email}</p>
                       )}
                       {order.delivery_address && (
                         <p>📍 {order.delivery_address}</p>
+                      )}
+                      {/* Driver info */}
+                      {order.assigned_driver_id ? (
+                        <p>
+                          🚗 Livreur: <span className="text-white">{getDriverName(order.assigned_driver_id)}</span>
+                          {order.driver_status && (
+                            <span className={`ml-2 ${driverStatusLabels[order.driver_status]?.color}`}>
+                              ({driverStatusLabels[order.driver_status]?.label})
+                            </span>
+                          )}
+                        </p>
+                      ) : (
+                        <p className="text-yellow-500">⏳ En attente de livreur</p>
                       )}
                       {order.notes && (
                         <p className="text-xs opacity-70">💬 {order.notes}</p>
@@ -294,6 +388,94 @@ export default function AdminPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+        </>
+        )}
+
+        {/* Drivers Tab */}
+        {activeTab === 'drivers' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white">Gestion des livreurs</h2>
+              <div className="text-sm text-foreground-muted">
+                {drivers.filter(d => d.is_active).length} livreurs actifs
+              </div>
+            </div>
+
+            {drivers.length === 0 ? (
+              <div className="text-center py-12 bg-background-card rounded-xl border border-border">
+                <div className="text-4xl mb-4">🚚</div>
+                <p className="text-foreground-muted mb-4">Aucun livreur enregistré</p>
+                <p className="text-sm text-foreground-muted">
+                  Les livreurs peuvent s&apos;inscrire via Telegram avec la commande <code className="bg-background px-2 py-1 rounded">/register</code>
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {drivers.map((driver) => (
+                  <div
+                    key={driver.id}
+                    className="bg-background-card rounded-xl p-6 border border-border"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl ${
+                          driver.is_active ? 'bg-fruit-green/20' : 'bg-gray-500/20'
+                        }`}>
+                          🚚
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-white">{driver.name}</h3>
+                          <p className="text-sm text-foreground-muted">{driver.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        {driver.telegram_chat_id ? (
+                          <span className="px-3 py-1 rounded-full text-xs bg-[#0088cc]/20 text-[#0088cc]">
+                            📱 Telegram lié
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 rounded-full text-xs bg-yellow-500/20 text-yellow-500">
+                            ⏳ Telegram non lié
+                          </span>
+                        )}
+                        <span className={`px-3 py-1 rounded-full text-xs ${
+                          driver.is_active
+                            ? 'bg-green-500/20 text-green-500'
+                            : 'bg-red-500/20 text-red-500'
+                        }`}>
+                          {driver.is_active ? '✓ Actif' : '✗ Inactif'}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Stats du livreur */}
+                    <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <div className="text-lg font-bold text-white">
+                          {orders.filter(o => o.assigned_driver_id === driver.id && o.status !== 'delivered').length}
+                        </div>
+                        <div className="text-xs text-foreground-muted">En cours</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-fruit-green">
+                          {orders.filter(o => o.assigned_driver_id === driver.id && o.status === 'delivered').length}
+                        </div>
+                        <div className="text-xs text-foreground-muted">Livrées</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-fruit-orange">
+                          {orders
+                            .filter(o => o.assigned_driver_id === driver.id && o.status !== 'cancelled')
+                            .reduce((sum, o) => sum + o.total, 0)}€
+                        </div>
+                        <div className="text-xs text-foreground-muted">Total</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>

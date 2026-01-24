@@ -1,16 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { useCart } from '@/lib/cart/CartContext';
+import { getDeliveryOptions, formatDateForApi, type DeliveryDay, type DeliveryOption } from '@/lib/delivery';
 
 export default function CommanderPage() {
   const { items: cart, removeItem, updateQuantity, total: subtotal } = useCart();
 
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [companyName, setCompanyName] = useState('');
+  const [address, setAddress] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [city, setCity] = useState('');
+  const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>([]);
+  const [selectedDeliveryDay, setSelectedDeliveryDay] = useState<DeliveryDay | null>(null);
+
+  // Calculer les options de livraison au chargement
+  useEffect(() => {
+    const options = getDeliveryOptions();
+    setDeliveryOptions(options);
+    // Sélectionner la première option par défaut (la plus proche)
+    if (options.length > 0) {
+      setSelectedDeliveryDay(options[0].day);
+    }
+  }, []);
 
   const deliveryFee = 0; // Livraison offerte
   const total = subtotal + deliveryFee;
@@ -21,6 +39,34 @@ export default function CommanderPage() {
       return;
     }
 
+    if (!phone) {
+      alert('Veuillez entrer votre numéro de téléphone');
+      return;
+    }
+
+    if (!companyName) {
+      alert('Veuillez entrer le nom de votre entreprise');
+      return;
+    }
+
+    if (!address || !postalCode || !city) {
+      alert('Veuillez entrer l\'adresse de livraison complète');
+      return;
+    }
+
+    if (!selectedDeliveryDay) {
+      alert('Veuillez choisir un jour de livraison');
+      return;
+    }
+
+    const selectedOption = deliveryOptions.find(o => o.day === selectedDeliveryDay);
+    if (!selectedOption) {
+      alert('Erreur: option de livraison invalide');
+      return;
+    }
+
+    const fullAddress = `${companyName}\n${address}\n${postalCode} ${city}`;
+
     setLoading(true);
 
     try {
@@ -30,6 +76,10 @@ export default function CommanderPage() {
         body: JSON.stringify({
           items: cart,
           customerEmail: email,
+          customerPhone: phone,
+          deliveryDay: selectedDeliveryDay,
+          deliveryDate: formatDateForApi(selectedOption.date),
+          deliveryAddress: fullAddress,
         }),
       });
 
@@ -128,21 +178,139 @@ export default function CommanderPage() {
                 </div>
               )}
 
-              {/* Email */}
+              {/* Coordonnées */}
               <div className="bg-background-card rounded-2xl p-6 border border-border mt-6">
                 <h2 className="text-lg font-bold text-white mb-4">Vos coordonnées</h2>
-                <div>
-                  <label htmlFor="email" className="block text-sm text-foreground-muted mb-2">
-                    Email professionnel
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="contact@entreprise.fr"
-                    className="w-full px-4 py-3 bg-background border border-border rounded-xl text-white placeholder-foreground-muted focus:border-fruit-green focus:outline-none transition-colors"
-                  />
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="companyName" className="block text-sm text-foreground-muted mb-2">
+                      Nom de l&apos;entreprise *
+                    </label>
+                    <input
+                      type="text"
+                      id="companyName"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      placeholder="Ma Super Startup"
+                      className="w-full px-4 py-3 bg-background border border-border rounded-xl text-white placeholder-foreground-muted focus:border-fruit-green focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="email" className="block text-sm text-foreground-muted mb-2">
+                      Email professionnel *
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="contact@entreprise.fr"
+                      className="w-full px-4 py-3 bg-background border border-border rounded-xl text-white placeholder-foreground-muted focus:border-fruit-green focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="phone" className="block text-sm text-foreground-muted mb-2">
+                      Téléphone *
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="06 12 34 56 78"
+                      className="w-full px-4 py-3 bg-background border border-border rounded-xl text-white placeholder-foreground-muted focus:border-fruit-green focus:outline-none transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Adresse de livraison */}
+              <div className="bg-background-card rounded-2xl p-6 border border-border mt-6">
+                <h2 className="text-lg font-bold text-white mb-4">📍 Adresse de livraison</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="address" className="block text-sm text-foreground-muted mb-2">
+                      Adresse *
+                    </label>
+                    <input
+                      type="text"
+                      id="address"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="123 Rue de la Tech, Bâtiment A"
+                      className="w-full px-4 py-3 bg-background border border-border rounded-xl text-white placeholder-foreground-muted focus:border-fruit-green focus:outline-none transition-colors"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label htmlFor="postalCode" className="block text-sm text-foreground-muted mb-2">
+                        Code postal *
+                      </label>
+                      <input
+                        type="text"
+                        id="postalCode"
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value)}
+                        placeholder="75001"
+                        className="w-full px-4 py-3 bg-background border border-border rounded-xl text-white placeholder-foreground-muted focus:border-fruit-green focus:outline-none transition-colors"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="city" className="block text-sm text-foreground-muted mb-2">
+                        Ville *
+                      </label>
+                      <input
+                        type="text"
+                        id="city"
+                        value={city}
+                        onChange={(e) => setCity(e.target.value)}
+                        placeholder="Paris"
+                        className="w-full px-4 py-3 bg-background border border-border rounded-xl text-white placeholder-foreground-muted focus:border-fruit-green focus:outline-none transition-colors"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Choix du jour de livraison */}
+              <div className="bg-background-card rounded-2xl p-6 border border-border mt-6">
+                <h2 className="text-lg font-bold text-white mb-4">📅 Jour de livraison</h2>
+                <p className="text-sm text-foreground-muted mb-4">
+                  Livraisons uniquement les <span className="text-fruit-green font-semibold">lundis</span> et <span className="text-fruit-green font-semibold">mardis</span>
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  {deliveryOptions.map((option) => (
+                    <button
+                      key={option.day}
+                      type="button"
+                      onClick={() => setSelectedDeliveryDay(option.day)}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        selectedDeliveryDay === option.day
+                          ? 'border-fruit-green bg-fruit-green/10'
+                          : 'border-border hover:border-fruit-green/50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div
+                          className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                            selectedDeliveryDay === option.day
+                              ? 'border-fruit-green bg-fruit-green'
+                              : 'border-foreground-muted'
+                          }`}
+                        >
+                          {selectedDeliveryDay === option.day && (
+                            <svg className="w-2 h-2 text-background" fill="currentColor" viewBox="0 0 8 8">
+                              <circle cx="4" cy="4" r="4" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="font-bold text-white">{option.label}</span>
+                      </div>
+                      <p className="text-sm text-foreground-muted capitalize pl-6">
+                        {option.formattedDate}
+                      </p>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>

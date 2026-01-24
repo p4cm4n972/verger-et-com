@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { constructWebhookEvent, stripe } from '@/lib/stripe/server';
 import { createClient } from '@/lib/supabase/server';
 import { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from '@/lib/email';
+import { sendNewOrderNotificationToDrivers } from '@/lib/telegram';
 import Stripe from 'stripe';
 
 // Désactiver le body parsing de Next.js pour les webhooks
@@ -77,6 +78,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const metadata = session.metadata || {};
   const items = metadata.items ? JSON.parse(metadata.items) : [];
   const companyId = metadata.companyId;
+  const customerPhone = metadata.customerPhone;
+  const deliveryDay = metadata.deliveryDay as 'monday' | 'tuesday' | undefined;
   const deliveryDate = metadata.deliveryDate;
 
   // Récupérer l'adresse de livraison depuis les métadonnées ou la session
@@ -102,7 +105,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     total,
     delivery_date: deliveryDate || new Date().toISOString().split('T')[0],
     delivery_address: deliveryAddress,
-    notes: `Paiement Stripe: ${session.payment_intent} | Email: ${session.customer_email || 'N/A'}`,
+    preferred_delivery_day: deliveryDay || null,
+    customer_email: session.customer_email || null,
+    customer_phone: customerPhone || null,
+    driver_status: 'pending' as const,
+    notes: `Paiement Stripe: ${session.payment_intent}`,
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -171,6 +178,45 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // Notification à l'admin
   await sendNewOrderNotificationEmail(emailData);
+
+  // Notification Telegram aux livreurs
+  if (deliveryDay) {
+    try {
+      // Récupérer tous les livreurs actifs avec un chat ID Telegram
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: drivers } = await (supabase as any)
+        .from('users')
+        .select('telegram_chat_id')
+        .eq('role', 'driver')
+        .eq('is_active', true)
+        .not('telegram_chat_id', 'is', null);
+
+      if (drivers && drivers.length > 0) {
+        const driverChatIds = drivers
+          .map((d: { telegram_chat_id: string }) => d.telegram_chat_id)
+          .filter(Boolean);
+
+        await sendNewOrderNotificationToDrivers(driverChatIds, {
+          orderId,
+          customerEmail: session.customer_email || '',
+          customerPhone: customerPhone || '',
+          total,
+          deliveryDate: deliveryDate || '',
+          deliveryDay,
+          deliveryAddress,
+          items: items.map((item: { productId: string; quantity: number }) => ({
+            name: item.productId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+            quantity: item.quantity,
+          })),
+        });
+
+        console.log(`Notification Telegram envoyée à ${driverChatIds.length} livreurs`);
+      }
+    } catch (telegramError) {
+      console.error('Erreur notification Telegram:', telegramError);
+      // Ne pas bloquer la commande si la notification échoue
+    }
+  }
 }
 
 // Formater une adresse Stripe
