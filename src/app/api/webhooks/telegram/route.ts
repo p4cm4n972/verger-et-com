@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { sendOrderAcceptedConfirmation, sendTelegramMessage } from '@/lib/telegram';
 import { sendOrderStatusUpdateEmail } from '@/lib/email';
+import { getSession, setSession, deleteSession, createSession } from '@/lib/telegram/sessions';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 
@@ -105,68 +106,143 @@ async function handleMessage(message: NonNullable<TelegramUpdate['message']>) {
   const chatId = message.chat.id.toString();
   const text = message.text || '';
 
+  // Vérifier s'il y a une session de création en cours
+  const session = getSession(chatId);
+  if (session && !text.startsWith('/')) {
+    await handleDriverCreationStep(chatId, text, session);
+    return;
+  }
+
   if (text === '/start') {
+    deleteSession(chatId); // Reset session si existante
     await sendTelegramMessage({
       chat_id: chatId,
       text: `
 🍎 <b>Bienvenue sur Verger & Com !</b>
 
 <b>Livreur ?</b>
-Lie ton compte avec: <code>/register ton@email.com</code>
+Lie ton compte: <code>/register ton@email.com</code>
 
 <b>Admin ?</b>
-Ajoute un livreur: <code>/admin motdepasse email nom</code>
+Ajoute un livreur: <code>/admin motdepasse</code>
       `.trim(),
+      parse_mode: 'HTML',
+    });
+  } else if (text === '/cancel') {
+    deleteSession(chatId);
+    await sendTelegramMessage({
+      chat_id: chatId,
+      text: '❌ Opération annulée.',
       parse_mode: 'HTML',
     });
   } else if (text.startsWith('/register ')) {
     const email = text.replace('/register ', '').trim();
     await handleLinkDriver(chatId, email);
   } else if (text.startsWith('/admin ')) {
-    // Format: /admin password email|nom|telephone|adresse
-    const content = text.replace('/admin ', '').trim();
-    const spaceIndex = content.indexOf(' ');
+    const password = text.replace('/admin ', '').trim();
 
-    if (spaceIndex === -1) {
+    if (password !== ADMIN_PASSWORD) {
       await sendTelegramMessage({
         chat_id: chatId,
-        text: `
-❌ <b>Format incorrect</b>
-
-Usage:
-<code>/admin motdepasse email|nom|telephone|adresse</code>
-
-Exemple:
-<code>/admin verger2024admin jean@mail.fr|Jean Dupont|0612345678|12 rue Paris 75001</code>
-        `.trim(),
+        text: '❌ Mot de passe incorrect.',
         parse_mode: 'HTML',
       });
       return;
     }
 
-    const password = content.substring(0, spaceIndex);
-    const data = content.substring(spaceIndex + 1);
-    const parts = data.split('|').map(p => p.trim());
+    // Démarrer la session de création
+    createSession(chatId);
+    await sendTelegramMessage({
+      chat_id: chatId,
+      text: `
+✅ <b>Création d'un livreur</b>
 
-    if (parts.length >= 4) {
-      const [email, name, phone, address] = parts;
-      await handleAdminAddDriver(chatId, password, email, name, phone, address);
-    } else {
+<b>Étape 1/4</b> - Email du livreur ?
+
+(Tape /cancel pour annuler)
+      `.trim(),
+      parse_mode: 'HTML',
+    });
+  } else if (text === '/mes_livraisons') {
+    await handleMyDeliveries(chatId);
+  }
+}
+
+/**
+ * Gère les étapes de création d'un livreur
+ */
+async function handleDriverCreationStep(chatId: string, text: string, session: NonNullable<ReturnType<typeof getSession>>) {
+  switch (session.step) {
+    case 'email':
+      if (!text.includes('@')) {
+        await sendTelegramMessage({
+          chat_id: chatId,
+          text: '❌ Email invalide. Réessaie:',
+          parse_mode: 'HTML',
+        });
+        return;
+      }
+      session.email = text.trim();
+      session.step = 'name';
+      setSession(chatId, session);
       await sendTelegramMessage({
         chat_id: chatId,
         text: `
-❌ <b>Données manquantes</b>
+📧 Email: <code>${session.email}</code>
 
-Usage:
-<code>/admin motdepasse email|nom|telephone|adresse</code>
-
-Tu as fourni ${parts.length} champs, il en faut 4.
+<b>Étape 2/4</b> - Nom complet du livreur ?
         `.trim(),
         parse_mode: 'HTML',
       });
-    }
-  } else if (text === '/mes_livraisons') {
-    await handleMyDeliveries(chatId);
+      break;
+
+    case 'name':
+      session.name = text.trim();
+      session.step = 'phone';
+      setSession(chatId, session);
+      await sendTelegramMessage({
+        chat_id: chatId,
+        text: `
+📧 Email: <code>${session.email}</code>
+👤 Nom: ${session.name}
+
+<b>Étape 3/4</b> - Numéro de téléphone ?
+        `.trim(),
+        parse_mode: 'HTML',
+      });
+      break;
+
+    case 'phone':
+      session.phone = text.trim();
+      session.step = 'address';
+      setSession(chatId, session);
+      await sendTelegramMessage({
+        chat_id: chatId,
+        text: `
+📧 Email: <code>${session.email}</code>
+👤 Nom: ${session.name}
+📞 Tél: ${session.phone}
+
+<b>Étape 4/4</b> - Adresse complète ?
+        `.trim(),
+        parse_mode: 'HTML',
+      });
+      break;
+
+    case 'address':
+      const address = text.trim();
+      deleteSession(chatId);
+
+      // Créer le livreur
+      await handleAdminAddDriver(
+        chatId,
+        ADMIN_PASSWORD, // Déjà vérifié au début
+        session.email!,
+        session.name!,
+        session.phone!,
+        address
+      );
+      break;
   }
 }
 
