@@ -25,8 +25,10 @@ interface Driver {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
   telegram_chat_id: string | null;
   is_active: boolean;
+  drivers: { current_zone: string | null }[] | null;
 }
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -90,7 +92,7 @@ export default function AdminPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data } = await (supabase as any)
         .from('users')
-        .select('id, name, email, telegram_chat_id, is_active')
+        .select('id, name, email, phone, telegram_chat_id, is_active, drivers(current_zone)')
         .eq('role', 'driver')
         .order('name', { ascending: true });
 
@@ -428,6 +430,12 @@ export default function AdminPage() {
                         <div>
                           <h3 className="font-bold text-white">{driver.name}</h3>
                           <p className="text-sm text-foreground-muted">{driver.email}</p>
+                          {driver.phone && (
+                            <p className="text-sm text-foreground-muted">📞 {driver.phone}</p>
+                          )}
+                          {driver.drivers?.[0]?.current_zone && (
+                            <p className="text-sm text-foreground-muted">📍 {driver.drivers[0].current_zone}</p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
