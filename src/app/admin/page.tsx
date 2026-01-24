@@ -371,7 +371,8 @@ export default function AdminPage() {
                     <div className="text-right">
                       <div className="text-2xl font-bold text-fruit-green">{order.total}€</div>
                       <div className="text-xs text-foreground-muted">
-                        Sous-total: {order.subtotal}€
+                        <p>💰 Bénéfice: <span className="text-fruit-green">10€</span></p>
+                        <p>🚚 Dû livreur: <span className="text-fruit-orange">{order.total - 10}€</span></p>
                       </div>
                     </div>
 
