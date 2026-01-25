@@ -6,9 +6,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { sendOrderAcceptedConfirmation, sendTelegramMessage } from '@/lib/telegram';
 import { sendOrderStatusUpdateEmail } from '@/lib/email';
-import { getSession, setSession, deleteSession, createSession } from '@/lib/telegram/sessions';
+import {
+  getSession,
+  setSession,
+  deleteSession,
+  createSessionFromInvite,
+  generateInviteToken,
+  validateInviteToken,
+  consumeInviteToken,
+  IDF_SECTORS,
+  SectorCode,
+} from '@/lib/telegram/sessions';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'verger2024admin';
+const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'VergerEtComBot';
 
 interface TelegramUpdate {
   update_id: number;
@@ -41,7 +53,6 @@ interface TelegramUpdate {
 }
 
 export async function POST(request: NextRequest) {
-  // Vérifier le token (optionnel mais recommandé)
   const token = request.nextUrl.searchParams.get('token');
   if (token && token !== TELEGRAM_BOT_TOKEN) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -50,12 +61,10 @@ export async function POST(request: NextRequest) {
   try {
     const update: TelegramUpdate = await request.json();
 
-    // Gérer les callback queries (boutons inline)
     if (update.callback_query) {
       await handleCallbackQuery(update.callback_query);
     }
 
-    // Gérer les messages texte (commandes)
     if (update.message?.text) {
       await handleMessage(update.message);
     }
@@ -68,28 +77,31 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Gère les callback queries (boutons accepter/refuser/livrer)
+ * Gère les callback queries (boutons)
  */
 async function handleCallbackQuery(callbackQuery: NonNullable<TelegramUpdate['callback_query']>) {
   const { id, from, data, message } = callbackQuery;
   const chatId = message?.chat.id.toString() || '';
 
-  // Parser le callback data
-  const [action, orderId] = data.split(':');
+  const [action, param] = data.split(':');
 
   const supabase = await createClient();
 
   switch (action) {
     case 'accept_order':
-      await handleAcceptOrder(supabase, orderId, chatId, from, id);
+      await handleAcceptOrder(supabase, param, chatId, from, id);
       break;
 
     case 'refuse_order':
-      await handleRefuseOrder(supabase, orderId, chatId, from, id);
+      await handleRefuseOrder(supabase, param, chatId, from, id);
       break;
 
     case 'deliver_order':
-      await handleDeliverOrder(supabase, orderId, chatId, from, id);
+      await handleDeliverOrder(supabase, param, chatId, from, id);
+      break;
+
+    case 'sector':
+      await handleSectorSelection(chatId, param as SectorCode, id);
       break;
 
     default:
@@ -97,84 +109,168 @@ async function handleCallbackQuery(callbackQuery: NonNullable<TelegramUpdate['ca
   }
 }
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'verger2024admin';
-
 /**
- * Gère les messages texte (commandes /start, etc.)
+ * Gère les messages texte
  */
 async function handleMessage(message: NonNullable<TelegramUpdate['message']>) {
   const chatId = message.chat.id.toString();
   const text = message.text || '';
 
-  // Vérifier s'il y a une session de création en cours
+  // Vérifier s'il y a une session d'inscription en cours
   const session = getSession(chatId);
   if (session && !text.startsWith('/')) {
-    await handleDriverCreationStep(chatId, text, session);
+    await handleRegistrationStep(chatId, text, session);
     return;
   }
 
+  // Commande /start avec token d'invitation
+  if (text.startsWith('/start invite_')) {
+    const token = text.replace('/start invite_', '').trim();
+    await handleInviteStart(chatId, token);
+    return;
+  }
+
+  // Commande /start simple
   if (text === '/start') {
-    deleteSession(chatId); // Reset session si existante
+    deleteSession(chatId);
     await sendTelegramMessage({
       chat_id: chatId,
       text: `
 🍎 <b>Bienvenue sur Verger & Com !</b>
 
-<b>Livreur ?</b>
-Lie ton compte: <code>/register ton@email.com</code>
+Ce bot est réservé aux livreurs.
+Si vous avez reçu un lien d'invitation, cliquez dessus pour vous inscrire.
 
 <b>Admin ?</b>
-Ajoute un livreur: <code>/admin motdepasse</code>
+Générer une invitation: <code>/invite motdepasse</code>
       `.trim(),
       parse_mode: 'HTML',
     });
-  } else if (text === '/cancel') {
+    return;
+  }
+
+  // Commande /cancel
+  if (text === '/cancel') {
     deleteSession(chatId);
     await sendTelegramMessage({
       chat_id: chatId,
-      text: '❌ Opération annulée.',
+      text: '❌ Inscription annulée.',
       parse_mode: 'HTML',
     });
-  } else if (text.startsWith('/register ')) {
-    const email = text.replace('/register ', '').trim();
-    await handleLinkDriver(chatId, email);
-  } else if (text.startsWith('/admin ')) {
-    const password = text.replace('/admin ', '').trim();
+    return;
+  }
 
-    if (password !== ADMIN_PASSWORD) {
-      await sendTelegramMessage({
-        chat_id: chatId,
-        text: '❌ Mot de passe incorrect.',
-        parse_mode: 'HTML',
-      });
-      return;
-    }
+  // Commande /invite (admin)
+  if (text.startsWith('/invite ')) {
+    const password = text.replace('/invite ', '').trim();
+    await handleGenerateInvite(chatId, password);
+    return;
+  }
 
-    // Démarrer la session de création
-    createSession(chatId);
-    await sendTelegramMessage({
-      chat_id: chatId,
-      text: `
-✅ <b>Création d'un livreur</b>
-
-<b>Étape 1/4</b> - Email du livreur ?
-
-(Tape /cancel pour annuler)
-      `.trim(),
-      parse_mode: 'HTML',
-    });
-  } else if (text === '/mes_livraisons') {
+  // Commande /mes_livraisons
+  if (text === '/mes_livraisons') {
     await handleMyDeliveries(chatId);
+    return;
   }
 }
 
 /**
- * Gère les étapes de création d'un livreur
+ * Génère un lien d'invitation (admin)
  */
-async function handleDriverCreationStep(chatId: string, text: string, session: NonNullable<ReturnType<typeof getSession>>) {
+async function handleGenerateInvite(chatId: string, password: string) {
+  if (password !== ADMIN_PASSWORD) {
+    await sendTelegramMessage({
+      chat_id: chatId,
+      text: '❌ Mot de passe incorrect.',
+      parse_mode: 'HTML',
+    });
+    return;
+  }
+
+  const token = generateInviteToken();
+  const inviteLink = `https://t.me/${BOT_USERNAME}?start=invite_${token}`;
+
+  await sendTelegramMessage({
+    chat_id: chatId,
+    text: `
+✅ <b>Lien d'invitation généré !</b>
+
+Envoie ce lien au nouveau livreur:
+<code>${inviteLink}</code>
+
+⏰ Valide 24h
+    `.trim(),
+    parse_mode: 'HTML',
+  });
+}
+
+/**
+ * Démarre l'inscription avec un token d'invitation
+ */
+async function handleInviteStart(chatId: string, token: string) {
+  if (!validateInviteToken(token)) {
+    await sendTelegramMessage({
+      chat_id: chatId,
+      text: `
+❌ <b>Lien invalide ou expiré</b>
+
+Demande un nouveau lien d'invitation à l'administrateur.
+      `.trim(),
+      parse_mode: 'HTML',
+    });
+    return;
+  }
+
+  // Vérifier si ce chat n'est pas déjà un livreur
+  const supabase = await createClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing } = await (supabase as any)
+    .from('users')
+    .select('id')
+    .eq('telegram_chat_id', chatId)
+    .eq('role', 'driver')
+    .single();
+
+  if (existing) {
+    await sendTelegramMessage({
+      chat_id: chatId,
+      text: `
+✅ Tu es déjà inscrit comme livreur !
+
+• /mes_livraisons - Voir tes livraisons
+      `.trim(),
+      parse_mode: 'HTML',
+    });
+    return;
+  }
+
+  // Démarrer la session d'inscription
+  createSessionFromInvite(chatId, token);
+
+  await sendTelegramMessage({
+    chat_id: chatId,
+    text: `
+🍎 <b>Inscription Livreur Verger & Com</b>
+
+<b>Étape 1/4</b> - Ton adresse email ?
+
+(Tape /cancel pour annuler)
+    `.trim(),
+    parse_mode: 'HTML',
+  });
+}
+
+/**
+ * Gère les étapes d'inscription
+ */
+async function handleRegistrationStep(
+  chatId: string,
+  text: string,
+  session: NonNullable<ReturnType<typeof getSession>>
+) {
   switch (session.step) {
     case 'email':
-      if (!text.includes('@')) {
+      if (!text.includes('@') || !text.includes('.')) {
         await sendTelegramMessage({
           chat_id: chatId,
           text: '❌ Email invalide. Réessaie:',
@@ -182,7 +278,7 @@ async function handleDriverCreationStep(chatId: string, text: string, session: N
         });
         return;
       }
-      session.email = text.trim();
+      session.email = text.trim().toLowerCase();
       session.step = 'name';
       setSession(chatId, session);
       await sendTelegramMessage({
@@ -190,13 +286,21 @@ async function handleDriverCreationStep(chatId: string, text: string, session: N
         text: `
 📧 Email: <code>${session.email}</code>
 
-<b>Étape 2/4</b> - Nom complet du livreur ?
+<b>Étape 2/4</b> - Ton nom complet ?
         `.trim(),
         parse_mode: 'HTML',
       });
       break;
 
     case 'name':
+      if (text.length < 2) {
+        await sendTelegramMessage({
+          chat_id: chatId,
+          text: '❌ Nom trop court. Réessaie:',
+          parse_mode: 'HTML',
+        });
+        return;
+      }
       session.name = text.trim();
       session.step = 'phone';
       setSession(chatId, session);
@@ -206,7 +310,7 @@ async function handleDriverCreationStep(chatId: string, text: string, session: N
 📧 Email: <code>${session.email}</code>
 👤 Nom: ${session.name}
 
-<b>Étape 3/4</b> - Numéro de téléphone ?
+<b>Étape 3/4</b> - Ton numéro de téléphone ?
         `.trim(),
         parse_mode: 'HTML',
       });
@@ -214,8 +318,12 @@ async function handleDriverCreationStep(chatId: string, text: string, session: N
 
     case 'phone':
       session.phone = text.trim();
-      session.step = 'address';
+      session.step = 'sector';
       setSession(chatId, session);
+
+      // Afficher les boutons de sélection de secteur
+      const keyboard = buildSectorKeyboard();
+
       await sendTelegramMessage({
         chat_id: chatId,
         text: `
@@ -223,27 +331,150 @@ async function handleDriverCreationStep(chatId: string, text: string, session: N
 👤 Nom: ${session.name}
 📞 Tél: ${session.phone}
 
-<b>Étape 4/4</b> - Adresse complète ?
+<b>Étape 4/4</b> - Ton secteur de livraison ?
         `.trim(),
         parse_mode: 'HTML',
+        reply_markup: { inline_keyboard: keyboard },
       });
       break;
 
-    case 'address':
-      const address = text.trim();
-      deleteSession(chatId);
-
-      // Créer le livreur
-      await handleAdminAddDriver(
-        chatId,
-        ADMIN_PASSWORD, // Déjà vérifié au début
-        session.email!,
-        session.name!,
-        session.phone!,
-        address
-      );
+    case 'sector':
+      // Cette étape est gérée par les boutons
+      await sendTelegramMessage({
+        chat_id: chatId,
+        text: '👆 Clique sur un bouton pour choisir ton secteur.',
+        parse_mode: 'HTML',
+      });
       break;
   }
+}
+
+/**
+ * Construit le clavier des secteurs
+ */
+function buildSectorKeyboard() {
+  const sectors = Object.entries(IDF_SECTORS);
+  const keyboard = [];
+
+  // Paris (2 par ligne)
+  const parisSectors = sectors.filter(([code]) => code.startsWith('paris'));
+  for (let i = 0; i < parisSectors.length; i += 2) {
+    const row = parisSectors.slice(i, i + 2).map(([code, info]) => ({
+      text: `${info.emoji} ${info.label.split(' (')[0]}`,
+      callback_data: `sector:${code}`,
+    }));
+    keyboard.push(row);
+  }
+
+  // Départements (2 par ligne)
+  const deptSectors = sectors.filter(([code]) => !code.startsWith('paris'));
+  for (let i = 0; i < deptSectors.length; i += 2) {
+    const row = deptSectors.slice(i, i + 2).map(([code, info]) => ({
+      text: `${info.emoji} ${info.label}`,
+      callback_data: `sector:${code}`,
+    }));
+    keyboard.push(row);
+  }
+
+  return keyboard;
+}
+
+/**
+ * Gère la sélection du secteur
+ */
+async function handleSectorSelection(chatId: string, sectorCode: SectorCode, callbackId: string) {
+  const session = getSession(chatId);
+
+  if (!session || session.step !== 'sector') {
+    await answerCallbackQuery(callbackId, '❌ Session expirée. Recommence.');
+    return;
+  }
+
+  const sector = IDF_SECTORS[sectorCode];
+  if (!sector) {
+    await answerCallbackQuery(callbackId, '❌ Secteur invalide.');
+    return;
+  }
+
+  // Consommer le token d'invitation
+  if (!consumeInviteToken(session.inviteToken)) {
+    await answerCallbackQuery(callbackId, '❌ Invitation expirée.');
+    deleteSession(chatId);
+    return;
+  }
+
+  // Créer le livreur en base
+  const supabase = await createClient();
+
+  // Vérifier si l'email existe déjà
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existingEmail } = await (supabase as any)
+    .from('users')
+    .select('id')
+    .eq('email', session.email)
+    .single();
+
+  if (existingEmail) {
+    await answerCallbackQuery(callbackId, '❌ Email déjà utilisé.');
+    deleteSession(chatId);
+    await sendTelegramMessage({
+      chat_id: chatId,
+      text: `❌ L'email <code>${session.email}</code> est déjà utilisé.`,
+      parse_mode: 'HTML',
+    });
+    return;
+  }
+
+  // Créer l'utilisateur
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: user, error: userError } = await (supabase as any)
+    .from('users')
+    .insert({
+      email: session.email,
+      name: session.name,
+      phone: session.phone,
+      role: 'driver',
+      telegram_chat_id: chatId,
+      is_active: true,
+    })
+    .select('id')
+    .single();
+
+  if (userError) {
+    console.error('Erreur création user:', userError);
+    await answerCallbackQuery(callbackId, '❌ Erreur. Réessaie.');
+    return;
+  }
+
+  // Créer l'entrée drivers avec le secteur
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any)
+    .from('drivers')
+    .insert({
+      user_id: user.id,
+      current_zone: sector.label,
+    });
+
+  deleteSession(chatId);
+  await answerCallbackQuery(callbackId, '✅ Inscription réussie !');
+
+  await sendTelegramMessage({
+    chat_id: chatId,
+    text: `
+🎉 <b>Bienvenue ${session.name} !</b>
+
+Tu es maintenant livreur Verger & Com.
+
+📧 Email: <code>${session.email}</code>
+📞 Tél: ${session.phone}
+📍 Secteur: ${sector.emoji} ${sector.label}
+
+Tu recevras les notifications de nouvelles commandes dans ton secteur.
+
+• /mes_livraisons - Voir tes livraisons
+    `.trim(),
+    parse_mode: 'HTML',
+  });
 }
 
 /**
@@ -256,7 +487,6 @@ async function handleAcceptOrder(
   _from: { id: number; first_name: string; last_name?: string },
   callbackId: string
 ) {
-  // Trouver le livreur par son chat ID
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: driver } = await (supabase as any)
     .from('users')
@@ -266,11 +496,10 @@ async function handleAcceptOrder(
     .single();
 
   if (!driver) {
-    await answerCallbackQuery(callbackId, '❌ Tu n\'es pas enregistré comme livreur');
+    await answerCallbackQuery(callbackId, '❌ Tu n\'es pas inscrit comme livreur');
     return;
   }
 
-  // Vérifier que la commande n'est pas déjà prise
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: order } = await (supabase as any)
     .from('orders')
@@ -288,7 +517,6 @@ async function handleAcceptOrder(
     return;
   }
 
-  // Assigner la commande au livreur
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any)
     .from('orders')
@@ -300,7 +528,6 @@ async function handleAcceptOrder(
     })
     .eq('id', orderId);
 
-  // Enregistrer dans les notifications
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any)
     .from('telegram_notifications')
@@ -312,8 +539,6 @@ async function handleAcceptOrder(
     });
 
   await answerCallbackQuery(callbackId, '✅ Commande acceptée !');
-
-  // Envoyer confirmation au livreur
   await sendOrderAcceptedConfirmation(chatId, orderId, order.delivery_date);
 }
 
@@ -327,7 +552,6 @@ async function handleRefuseOrder(
   _from: { id: number; first_name: string },
   callbackId: string
 ) {
-  // Trouver le livreur
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: driver } = await (supabase as any)
     .from('users')
@@ -337,7 +561,6 @@ async function handleRefuseOrder(
     .single();
 
   if (driver) {
-    // Enregistrer le refus
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (supabase as any)
       .from('telegram_notifications')
@@ -368,7 +591,6 @@ async function handleDeliverOrder(
   _from: { id: number; first_name: string },
   callbackId: string
 ) {
-  // Vérifier que c'est bien le livreur assigné
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: driver } = await (supabase as any)
     .from('users')
@@ -378,11 +600,10 @@ async function handleDeliverOrder(
     .single();
 
   if (!driver) {
-    await answerCallbackQuery(callbackId, '❌ Tu n\'es pas enregistré comme livreur');
+    await answerCallbackQuery(callbackId, '❌ Tu n\'es pas inscrit comme livreur');
     return;
   }
 
-  // Vérifier la commande
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: order } = await (supabase as any)
     .from('orders')
@@ -401,11 +622,10 @@ async function handleDeliverOrder(
   }
 
   if (order.status === 'delivered') {
-    await answerCallbackQuery(callbackId, '✅ Cette commande a déjà été livrée');
+    await answerCallbackQuery(callbackId, '✅ Déjà livrée');
     return;
   }
 
-  // Marquer comme livrée
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any)
     .from('orders')
@@ -417,7 +637,6 @@ async function handleDeliverOrder(
 
   await answerCallbackQuery(callbackId, '✅ Livraison validée !');
 
-  // Notification au livreur
   await sendTelegramMessage({
     chat_id: chatId,
     text: `
@@ -429,162 +648,9 @@ Merci pour ton travail ! 🍎
     parse_mode: 'HTML',
   });
 
-  // Email au client
   if (order.customer_email) {
-    await sendOrderStatusUpdateEmail(
-      order.customer_email,
-      orderId,
-      'delivered'
-    );
+    await sendOrderStatusUpdateEmail(order.customer_email, orderId, 'delivered');
   }
-}
-
-/**
- * Lier un compte livreur existant à Telegram (pour les livreurs)
- */
-async function handleLinkDriver(chatId: string, email: string) {
-  const supabase = await createClient();
-
-  // Vérifier si le livreur existe (créé par l'admin)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: driver } = await (supabase as any)
-    .from('users')
-    .select('id, name, role')
-    .eq('email', email)
-    .eq('role', 'driver')
-    .single();
-
-  if (!driver) {
-    await sendTelegramMessage({
-      chat_id: chatId,
-      text: `
-❌ <b>Compte non trouvé</b>
-
-Aucun compte livreur avec l'email <code>${email}</code>.
-Contacte l'administrateur pour qu'il crée ton compte.
-      `.trim(),
-      parse_mode: 'HTML',
-    });
-    return;
-  }
-
-  // Lier le Telegram au compte existant
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
-    .from('users')
-    .update({ telegram_chat_id: chatId })
-    .eq('id', driver.id);
-
-  await sendTelegramMessage({
-    chat_id: chatId,
-    text: `
-✅ <b>Compte lié !</b>
-
-Bienvenue ${driver.name} !
-Tu recevras les notifications de nouvelles commandes.
-
-• /mes_livraisons - Voir tes livraisons
-    `.trim(),
-    parse_mode: 'HTML',
-  });
-}
-
-/**
- * Créer un nouveau livreur (réservé à l'admin)
- */
-async function handleAdminAddDriver(
-  chatId: string,
-  password: string,
-  email: string,
-  name: string,
-  phone: string,
-  address: string
-) {
-  // Vérifier le mot de passe admin
-  if (password !== ADMIN_PASSWORD) {
-    await sendTelegramMessage({
-      chat_id: chatId,
-      text: '❌ Mot de passe incorrect.',
-      parse_mode: 'HTML',
-    });
-    return;
-  }
-
-  const supabase = await createClient();
-
-  // Vérifier si le livreur existe déjà
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: existing } = await (supabase as any)
-    .from('users')
-    .select('id')
-    .eq('email', email)
-    .single();
-
-  if (existing) {
-    await sendTelegramMessage({
-      chat_id: chatId,
-      text: `❌ Un compte avec l'email <code>${email}</code> existe déjà.`,
-      parse_mode: 'HTML',
-    });
-    return;
-  }
-
-  // Créer le compte livreur
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
-    .from('users')
-    .insert({
-      email,
-      name,
-      phone,
-      role: 'driver',
-      is_active: true,
-    });
-
-  // Créer aussi l'entrée dans la table drivers avec l'adresse
-  if (!error) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: user } = await (supabase as any)
-      .from('users')
-      .select('id')
-      .eq('email', email)
-      .single();
-
-    if (user) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any)
-        .from('drivers')
-        .insert({
-          user_id: user.id,
-          current_zone: address,
-        });
-    }
-  }
-
-  if (error) {
-    await sendTelegramMessage({
-      chat_id: chatId,
-      text: `❌ Erreur: ${error.message}`,
-      parse_mode: 'HTML',
-    });
-    return;
-  }
-
-  await sendTelegramMessage({
-    chat_id: chatId,
-    text: `
-✅ <b>Livreur créé !</b>
-
-👤 Nom: ${name}
-📧 Email: <code>${email}</code>
-📞 Tél: ${phone}
-📍 Adresse: ${address}
-
-Le livreur peut maintenant lier son Telegram avec:
-<code>/register ${email}</code>
-    `.trim(),
-    parse_mode: 'HTML',
-  });
 }
 
 /**
@@ -593,7 +659,6 @@ Le livreur peut maintenant lier son Telegram avec:
 async function handleMyDeliveries(chatId: string) {
   const supabase = await createClient();
 
-  // Trouver le livreur
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: driver } = await (supabase as any)
     .from('users')
@@ -605,13 +670,12 @@ async function handleMyDeliveries(chatId: string) {
   if (!driver) {
     await sendTelegramMessage({
       chat_id: chatId,
-      text: '❌ Tu n\'es pas enregistré comme livreur. Utilise /register pour t\'inscrire.',
+      text: '❌ Tu n\'es pas inscrit comme livreur.',
       parse_mode: 'HTML',
     });
     return;
   }
 
-  // Récupérer les livraisons en cours
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: orders } = await (supabase as any)
     .from('orders')
@@ -631,7 +695,7 @@ async function handleMyDeliveries(chatId: string) {
 
   const ordersList = orders
     .map((o: { id: string; delivery_date: string; delivery_address: string; total: number; status: string }) =>
-      `📦 #${o.id.slice(0, 8)} - ${o.delivery_date}\n   📍 ${o.delivery_address || 'Adresse à confirmer'}\n   💰 ${o.total}€ - ${o.status === 'preparing' ? '🔄 En préparation' : '✅ Confirmée'}`
+      `📦 #${o.id.slice(0, 8)} - ${o.delivery_date}\n   📍 ${o.delivery_address || 'Adresse à confirmer'}\n   💰 ${o.total}€`
     )
     .join('\n\n');
 
