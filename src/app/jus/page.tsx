@@ -49,10 +49,10 @@ export default function JusPage() {
                 className="p-6 rounded-2xl bg-background border border-border hover:border-fruit-orange/50 transition-all group"
               >
                 <div className="w-20 h-20 bg-gradient-to-br from-fruit-orange/20 to-fruit-yellow/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <span className="text-4xl">🍊</span>
+                  <span className="text-4xl">{juice.emoji}</span>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-1">{juice.name}</h3>
+                <h3 className="text-xl font-bold text-white mb-1">{juice.emoji} {juice.name}</h3>
                 <p className="text-foreground-muted text-sm mb-4">
                   Pack de {juice.quantity} bouteilles de {juice.size}
                 </p>
@@ -93,10 +93,10 @@ export default function JusPage() {
                 className="p-6 rounded-2xl bg-background-card border border-border hover:border-fruit-yellow/50 transition-all group"
               >
                 <div className="w-20 h-20 bg-gradient-to-br from-fruit-yellow/20 to-fruit-orange/20 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                  <span className="text-4xl">🍹</span>
+                  <span className="text-4xl">{juice.emoji}</span>
                 </div>
 
-                <h3 className="text-xl font-bold text-white mb-1">{juice.name}</h3>
+                <h3 className="text-xl font-bold text-white mb-1">{juice.emoji} {juice.name}</h3>
                 <p className="text-foreground-muted text-sm mb-4">
                   Pack de {juice.quantity} bouteilles de {juice.size}
                 </p>

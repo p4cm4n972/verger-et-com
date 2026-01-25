@@ -30,6 +30,7 @@ export interface Juice {
   id: string;
   name: string;
   flavor: string;
+  emoji: string;
   size: '25cl' | '1L';
   quantity: number; // 12 pour 25cl, 6 pour 1L
   price: number;
