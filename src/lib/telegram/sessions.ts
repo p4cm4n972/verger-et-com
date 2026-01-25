@@ -2,6 +2,8 @@
 // VERGER & COM - Sessions et Invitations Livreurs
 // ==========================================
 
+import { createClient } from '@/lib/supabase/server';
+
 // === SECTEURS ÎLE-DE-FRANCE ===
 export const IDF_SECTORS = {
   'paris-centre': { label: 'Paris Centre (1-4)', emoji: '🏛️' },
@@ -20,7 +22,7 @@ export const IDF_SECTORS = {
 
 export type SectorCode = keyof typeof IDF_SECTORS;
 
-// === SESSION D'INSCRIPTION LIVREUR ===
+// === SESSION D'INSCRIPTION LIVREUR (en mémoire - courte durée) ===
 export interface DriverRegistrationSession {
   step: 'email' | 'name' | 'phone' | 'sector';
   inviteToken: string;
@@ -30,17 +32,11 @@ export interface DriverRegistrationSession {
   createdAt: number;
 }
 
-// Stockage en mémoire des sessions
+// Stockage en mémoire des sessions (OK car courte durée)
 const sessions = new Map<string, DriverRegistrationSession>();
+const SESSION_TTL = 10 * 60 * 1000; // 10 minutes
 
-// Stockage des tokens d'invitation (token -> timestamp)
-const inviteTokens = new Map<string, number>();
-
-// Durée de vie: session 10min, invitation 24h
-const SESSION_TTL = 10 * 60 * 1000;
-const INVITE_TTL = 24 * 60 * 60 * 1000;
-
-// === GESTION DES SESSIONS ===
+// === GESTION DES SESSIONS (mémoire) ===
 export function getSession(chatId: string): DriverRegistrationSession | null {
   const session = sessions.get(chatId);
   if (!session) return null;
@@ -71,34 +67,69 @@ export function createSessionFromInvite(chatId: string, token: string): DriverRe
   return session;
 }
 
-// === GESTION DES INVITATIONS ===
-export function generateInviteToken(): string {
+// === GESTION DES INVITATIONS (Supabase - persistant) ===
+
+/**
+ * Génère un token d'invitation et le stocke en base
+ */
+export async function generateInviteToken(): Promise<string> {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let token = '';
   for (let i = 0; i < 12; i++) {
     token += chars.charAt(Math.floor(Math.random() * chars.length));
   }
-  inviteTokens.set(token, Date.now());
+
+  const supabase = await createClient();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any)
+    .from('driver_invite_tokens')
+    .insert({
+      token,
+      expires_at: expiresAt.toISOString(),
+    });
+
   return token;
 }
 
-export function validateInviteToken(token: string): boolean {
-  const created = inviteTokens.get(token);
-  if (!created) return false;
+/**
+ * Vérifie si un token est valide (existe et non expiré)
+ */
+export async function validateInviteToken(token: string): Promise<boolean> {
+  const supabase = await createClient();
 
-  if (Date.now() - created > INVITE_TTL) {
-    inviteTokens.delete(token);
-    return false;
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data } = await (supabase as any)
+    .from('driver_invite_tokens')
+    .select('id, expires_at, used_at')
+    .eq('token', token)
+    .single();
+
+  if (!data) return false;
+  if (data.used_at) return false; // Déjà utilisé
+  if (new Date(data.expires_at) < new Date()) return false; // Expiré
 
   return true;
 }
 
-export function consumeInviteToken(token: string): boolean {
-  if (!validateInviteToken(token)) return false;
-  inviteTokens.delete(token);
-  return true;
-}
+/**
+ * Marque un token comme utilisé
+ */
+export async function consumeInviteToken(token: string, userId?: string): Promise<boolean> {
+  const isValid = await validateInviteToken(token);
+  if (!isValid) return false;
 
-// === ANCIENNES FONCTIONS (rétrocompatibilité) ===
-// Supprimées car remplacées par le nouveau système
+  const supabase = await createClient();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('driver_invite_tokens')
+    .update({
+      used_at: new Date().toISOString(),
+      used_by_user_id: userId || null,
+    })
+    .eq('token', token);
+
+  return !error;
+}

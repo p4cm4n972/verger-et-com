@@ -102,12 +102,6 @@ export default function AdminPage() {
     }
   };
 
-  const getDriverName = (driverId: string | null) => {
-    if (!driverId) return null;
-    const driver = drivers.find(d => d.id === driverId);
-    return driver?.name || 'Livreur inconnu';
-  };
-
   const formatDeliveryDay = (day: string | null) => {
     if (!day) return '';
     return day === 'monday' ? 'Lundi' : 'Mardi';
@@ -162,6 +156,44 @@ export default function AdminPage() {
       }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erreur de mise à jour');
+    }
+  };
+
+  const assignDriver = async (orderId: string, driverId: string | null) => {
+    try {
+      const token = sessionStorage.getItem('admin_token');
+      const response = await fetch(`/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          assigned_driver_id: driverId,
+          driver_status: driverId ? 'accepted' : 'pending',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur d\'attribution');
+      }
+
+      setOrders(orders.map(order =>
+        order.id === orderId
+          ? {
+              ...order,
+              assigned_driver_id: driverId,
+              driver_status: driverId ? 'accepted' : 'pending',
+            }
+          : order
+      ));
+
+      if (driverId) {
+        const driver = drivers.find(d => d.id === driverId);
+        alert(`Commande attribuée à ${driver?.name || 'livreur'}`);
+      }
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erreur d\'attribution');
     }
   };
 
@@ -348,19 +380,27 @@ export default function AdminPage() {
                       {order.delivery_address && (
                         <p>📍 {order.delivery_address}</p>
                       )}
-                      {/* Driver info */}
-                      {order.assigned_driver_id ? (
-                        <p>
-                          🚗 Livreur: <span className="text-white">{getDriverName(order.assigned_driver_id)}</span>
-                          {order.driver_status && (
-                            <span className={`ml-2 ${driverStatusLabels[order.driver_status]?.color}`}>
-                              ({driverStatusLabels[order.driver_status]?.label})
-                            </span>
-                          )}
-                        </p>
-                      ) : (
-                        <p className="text-yellow-500">⏳ En attente de livreur</p>
-                      )}
+                      {/* Attribution livreur */}
+                      <div className="flex items-center gap-2">
+                        <span>🚗</span>
+                        <select
+                          value={order.assigned_driver_id || ''}
+                          onChange={(e) => assignDriver(order.id, e.target.value || null)}
+                          className="px-2 py-1 bg-background border border-border rounded text-sm text-white focus:border-fruit-green focus:outline-none"
+                        >
+                          <option value="">-- Attribuer un livreur --</option>
+                          {drivers.filter(d => d.is_active).map((driver) => (
+                            <option key={driver.id} value={driver.id}>
+                              {driver.name} {driver.drivers?.[0]?.current_zone ? `(${driver.drivers[0].current_zone})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                        {order.driver_status && order.assigned_driver_id && (
+                          <span className={`text-xs ${driverStatusLabels[order.driver_status]?.color}`}>
+                            {driverStatusLabels[order.driver_status]?.label}
+                          </span>
+                        )}
+                      </div>
                       {order.notes && (
                         <p className="text-xs opacity-70">💬 {order.notes}</p>
                       )}

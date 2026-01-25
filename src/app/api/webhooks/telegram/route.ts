@@ -187,7 +187,7 @@ async function handleGenerateInvite(chatId: string, password: string) {
     return;
   }
 
-  const token = generateInviteToken();
+  const token = await generateInviteToken();
   const inviteLink = `https://t.me/${BOT_USERNAME}?start=invite_${token}`;
 
   await sendTelegramMessage({
@@ -208,7 +208,7 @@ Envoie ce lien au nouveau livreur:
  * Démarre l'inscription avec un token d'invitation
  */
 async function handleInviteStart(chatId: string, token: string) {
-  if (!validateInviteToken(token)) {
+  if (!(await validateInviteToken(token))) {
     await sendTelegramMessage({
       chat_id: chatId,
       text: `
@@ -397,7 +397,7 @@ async function handleSectorSelection(chatId: string, sectorCode: SectorCode, cal
   }
 
   // Consommer le token d'invitation
-  if (!consumeInviteToken(session.inviteToken)) {
+  if (!(await consumeInviteToken(session.inviteToken))) {
     await answerCallbackQuery(callbackId, '❌ Invitation expirée.');
     deleteSession(chatId);
     return;

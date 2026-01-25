@@ -17,7 +17,8 @@ export async function PATCH(
 
   try {
     const { id } = await params;
-    const { status } = await request.json();
+    const body = await request.json();
+    const { status, assigned_driver_id, driver_status } = body;
 
     const supabase = await createClient();
 
@@ -33,11 +34,17 @@ export async function PATCH(
       return NextResponse.json({ error: 'Commande non trouvée' }, { status: 404 });
     }
 
-    // Mettre à jour le statut
+    // Construire l'objet de mise à jour
+    const updateData: Record<string, unknown> = {};
+    if (status !== undefined) updateData.status = status;
+    if (assigned_driver_id !== undefined) updateData.assigned_driver_id = assigned_driver_id;
+    if (driver_status !== undefined) updateData.driver_status = driver_status;
+
+    // Mettre à jour la commande
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: updateError } = await (supabase as any)
       .from('orders')
-      .update({ status })
+      .update(updateData)
       .eq('id', id);
 
     if (updateError) {
