@@ -53,7 +53,14 @@ export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<'orders' | 'drivers'>('orders');
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [snackbar, setSnackbar] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const router = useRouter();
+
+  // Fonction pour afficher un snackbar
+  const showSnackbar = (message: string, type: 'success' | 'error' = 'success') => {
+    setSnackbar({ message, type });
+    setTimeout(() => setSnackbar(null), 4000);
+  };
 
   useEffect(() => {
     checkAuth();
@@ -223,11 +230,13 @@ export default function AdminPage() {
       ));
 
       // Notification de succès
-      if (['preparing', 'delivered', 'cancelled'].includes(newStatus)) {
-        alert('Statut mis à jour et email envoyé au client');
+      if (newStatus === 'delivered') {
+        showSnackbar('Statut mis à jour et email envoyé au client', 'success');
+      } else {
+        showSnackbar('Statut mis à jour', 'success');
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur de mise à jour');
+      showSnackbar(err instanceof Error ? err.message : 'Erreur de mise à jour', 'error');
     }
   };
 
@@ -262,10 +271,10 @@ export default function AdminPage() {
 
       if (driverId) {
         const driver = drivers.find(d => d.id === driverId);
-        alert(`Commande attribuée à ${driver?.name || 'livreur'}`);
+        showSnackbar(`Commande attribuée à ${driver?.name || 'livreur'}`, 'success');
       }
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Erreur d\'attribution');
+      showSnackbar(err instanceof Error ? err.message : 'Erreur d\'attribution', 'error');
     }
   };
 
@@ -584,10 +593,10 @@ export default function AdminPage() {
                       </div>
                     </div>
                     {/* Stats du livreur */}
-                    <div className="mt-4 pt-4 border-t border-border grid grid-cols-3 gap-4 text-center">
+                    <div className="mt-4 pt-4 border-t border-border grid grid-cols-4 gap-4 text-center">
                       <div>
                         <div className="text-lg font-bold text-white">
-                          {orders.filter(o => o.assigned_driver_id === driver.id && o.status !== 'delivered').length}
+                          {orders.filter(o => o.assigned_driver_id === driver.id && o.status !== 'delivered' && o.status !== 'cancelled').length}
                         </div>
                         <div className="text-xs text-foreground-muted">En cours</div>
                       </div>
@@ -598,12 +607,20 @@ export default function AdminPage() {
                         <div className="text-xs text-foreground-muted">Livrées</div>
                       </div>
                       <div>
-                        <div className="text-lg font-bold text-fruit-orange">
+                        <div className="text-lg font-bold text-white">
                           {orders
-                            .filter(o => o.assigned_driver_id === driver.id && o.status !== 'cancelled')
+                            .filter(o => o.assigned_driver_id === driver.id && o.status === 'delivered')
                             .reduce((sum, o) => sum + o.total, 0)}€
                         </div>
-                        <div className="text-xs text-foreground-muted">Total</div>
+                        <div className="text-xs text-foreground-muted">CA Total</div>
+                      </div>
+                      <div>
+                        <div className="text-lg font-bold text-fruit-orange">
+                          {orders
+                            .filter(o => o.assigned_driver_id === driver.id && o.status === 'delivered')
+                            .reduce((sum, o) => sum + (o.total - 10), 0)}€
+                        </div>
+                        <div className="text-xs text-foreground-muted">Solde dû</div>
                       </div>
                     </div>
                   </div>
@@ -613,6 +630,30 @@ export default function AdminPage() {
           </div>
         )}
       </main>
+
+      {/* Snackbar */}
+      {snackbar && (
+        <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+          <div
+            className={`px-6 py-4 rounded-xl shadow-lg flex items-center gap-3 ${
+              snackbar.type === 'success'
+                ? 'bg-fruit-green text-background'
+                : 'bg-fruit-red text-white'
+            }`}
+          >
+            <span className="text-xl">
+              {snackbar.type === 'success' ? '✓' : '✗'}
+            </span>
+            <span className="font-medium">{snackbar.message}</span>
+            <button
+              onClick={() => setSnackbar(null)}
+              className="ml-2 opacity-70 hover:opacity-100"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
