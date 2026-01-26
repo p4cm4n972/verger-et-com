@@ -77,9 +77,10 @@ export default function AdminPage() {
           table: 'orders',
         },
         (payload) => {
-          console.log('📦 Realtime orders:', payload.eventType);
+          console.log('📦 Realtime orders event:', payload.eventType, payload);
 
           if (payload.eventType === 'INSERT') {
+            console.log('🆕 Nouvelle commande reçue:', payload.new);
             setOrders((prev) => [payload.new as Order, ...prev]);
           } else if (payload.eventType === 'UPDATE') {
             setOrders((prev) =>
@@ -94,11 +95,14 @@ export default function AdminPage() {
           }
         }
       )
-      .subscribe((status) => {
+      .subscribe((status, err) => {
+        console.log('📦 Orders channel status:', status, err);
         if (status === 'SUBSCRIBED') {
           setRealtimeStatus('connected');
+          console.log('✅ Realtime connecté pour les commandes');
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           setRealtimeStatus('disconnected');
+          console.error('❌ Erreur Realtime:', err);
         }
       });
 
