@@ -7,7 +7,6 @@ import { Footer } from '@/components/layout/Footer';
 import { useCart } from '@/lib/cart/CartContext';
 import { getDeliveryOptions, formatDateForApi, type DeliveryDay, type DeliveryOption } from '@/lib/delivery';
 
-type SubscriptionFrequency = 'weekly' | 'biweekly' | 'monthly' | null;
 type SubscriptionPlan = 'discovery' | 'team' | 'enterprise' | null;
 
 // Mapper les IDs de paniers vers les plans d'abonnement Stripe
@@ -16,12 +15,6 @@ const BASKET_TO_PLAN: Record<string, SubscriptionPlan> = {
   'basket-8kg': 'team',
   'basket-12kg': 'enterprise',
 };
-
-const FREQUENCY_OPTIONS = [
-  { value: 'weekly' as const, label: 'Chaque semaine', emoji: '🗓️' },
-  { value: 'biweekly' as const, label: 'Toutes les 2 semaines', emoji: '📆' },
-  { value: 'monthly' as const, label: 'Chaque mois', emoji: '🗒️' },
-];
 
 export default function CommanderPage() {
   const { items: cart, removeItem, updateQuantity, total: subtotal } = useCart();
@@ -36,7 +29,6 @@ export default function CommanderPage() {
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>([]);
   const [selectedDeliveryDay, setSelectedDeliveryDay] = useState<DeliveryDay | null>(null);
   const [isSubscription, setIsSubscription] = useState(false);
-  const [subscriptionFrequency, setSubscriptionFrequency] = useState<SubscriptionFrequency>(null);
 
   // Calculer les options de livraison au chargement
   useEffect(() => {
@@ -102,7 +94,7 @@ export default function CommanderPage() {
           deliveryDate: formatDateForApi(selectedOption.date),
           deliveryAddress: fullAddress,
           isSubscription,
-          subscriptionFrequency: isSubscription ? subscriptionFrequency : null,
+          subscriptionFrequency: isSubscription ? 'weekly' : null,
           // Déterminer le plan d'abonnement basé sur le premier panier
           subscriptionPlan: isSubscription
             ? (cart.find(item => item.type === 'basket')?.productId
@@ -345,24 +337,17 @@ export default function CommanderPage() {
 
               {/* Option abonnement */}
               <div className="bg-gradient-to-r from-fruit-green/10 to-fruit-orange/10 rounded-2xl p-6 border border-fruit-green/30 mt-6">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">🔄</span>
                     <div>
-                      <h2 className="text-lg font-bold text-white">Abonnement</h2>
-                      <p className="text-sm text-foreground-muted">Recevez automatiquement</p>
+                      <h2 className="text-lg font-bold text-white">Abonnement hebdomadaire</h2>
+                      <p className="text-sm text-foreground-muted">Recevez automatiquement chaque semaine</p>
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsSubscription(!isSubscription);
-                      if (!isSubscription) {
-                        setSubscriptionFrequency('weekly');
-                      } else {
-                        setSubscriptionFrequency(null);
-                      }
-                    }}
+                    onClick={() => setIsSubscription(!isSubscription)}
                     className={`w-14 h-8 rounded-full transition-all ${
                       isSubscription ? 'bg-fruit-green' : 'bg-border'
                     }`}
@@ -376,27 +361,13 @@ export default function CommanderPage() {
                 </div>
 
                 {isSubscription && (
-                  <div className="space-y-3">
-                    <p className="text-sm text-foreground-muted">Fréquence de livraison :</p>
-                    <div className="grid grid-cols-3 gap-3">
-                      {FREQUENCY_OPTIONS.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          onClick={() => setSubscriptionFrequency(option.value)}
-                          className={`p-3 rounded-xl border-2 text-center transition-all ${
-                            subscriptionFrequency === option.value
-                              ? 'border-fruit-green bg-fruit-green/10'
-                              : 'border-border hover:border-fruit-green/50'
-                          }`}
-                        >
-                          <span className="text-xl block mb-1">{option.emoji}</span>
-                          <span className="text-xs text-white">{option.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                    <p className="text-xs text-fruit-green">
-                      Vous pouvez annuler à tout moment depuis votre espace client
+                  <div className="mt-4 p-3 bg-fruit-green/10 rounded-xl">
+                    <p className="text-sm text-fruit-green flex items-center gap-2">
+                      <span>✓</span>
+                      Livraison automatique chaque semaine
+                    </p>
+                    <p className="text-xs text-foreground-muted mt-2">
+                      Annulez à tout moment depuis votre espace client
                     </p>
                   </div>
                 )}
@@ -417,14 +388,10 @@ export default function CommanderPage() {
                     <span>Livraison</span>
                     <span className="text-fruit-green">Offerte</span>
                   </div>
-                  {isSubscription && subscriptionFrequency && (
+                  {isSubscription && (
                     <div className="flex justify-between text-fruit-orange">
                       <span>🔄 Abonnement</span>
-                      <span className="text-xs">
-                        {subscriptionFrequency === 'weekly' && 'Hebdo'}
-                        {subscriptionFrequency === 'biweekly' && '2 sem.'}
-                        {subscriptionFrequency === 'monthly' && 'Mensuel'}
-                      </span>
+                      <span className="text-xs">Hebdo</span>
                     </div>
                   )}
                   <div className="border-t border-border pt-3 flex justify-between">
