@@ -1,8 +1,12 @@
+'use client';
+
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { JUICES } from '@/lib/constants';
+import { useCart } from '@/lib/cart/CartContext';
 
 export default function JusPage() {
+  const { addItem } = useCart();
   // Grouper les jus par taille
   const juices25cl = JUICES.filter((j) => j.size === '25cl');
   const juices1L = JUICES.filter((j) => j.size === '1L');
@@ -64,7 +68,15 @@ export default function JusPage() {
                   </span>
                 </div>
 
-                <button className="w-full py-3 rounded-xl font-semibold border border-fruit-orange text-fruit-orange hover:bg-fruit-orange hover:text-background transition-all">
+                <button
+                  onClick={() => addItem({
+                    type: 'juice',
+                    productId: juice.id,
+                    name: `${juice.emoji} ${juice.name} (${juice.size} x${juice.quantity})`,
+                    price: juice.price,
+                  })}
+                  className="w-full py-3 rounded-xl font-semibold border border-fruit-orange text-fruit-orange hover:bg-fruit-orange hover:text-background transition-all"
+                >
                   Ajouter au panier
                 </button>
               </div>
@@ -108,7 +120,15 @@ export default function JusPage() {
                   </span>
                 </div>
 
-                <button className="w-full py-3 rounded-xl font-semibold border border-fruit-yellow text-fruit-yellow hover:bg-fruit-yellow hover:text-background transition-all">
+                <button
+                  onClick={() => addItem({
+                    type: 'juice',
+                    productId: juice.id,
+                    name: `${juice.emoji} ${juice.name} (${juice.size} x${juice.quantity})`,
+                    price: juice.price,
+                  })}
+                  className="w-full py-3 rounded-xl font-semibold border border-fruit-yellow text-fruit-yellow hover:bg-fruit-yellow hover:text-background transition-all"
+                >
                   Ajouter au panier
                 </button>
               </div>

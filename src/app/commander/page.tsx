@@ -7,6 +7,14 @@ import { Footer } from '@/components/layout/Footer';
 import { useCart } from '@/lib/cart/CartContext';
 import { getDeliveryOptions, formatDateForApi, type DeliveryDay, type DeliveryOption } from '@/lib/delivery';
 
+type SubscriptionFrequency = 'weekly' | 'biweekly' | 'monthly' | null;
+
+const FREQUENCY_OPTIONS = [
+  { value: 'weekly' as const, label: 'Chaque semaine', emoji: '🗓️' },
+  { value: 'biweekly' as const, label: 'Toutes les 2 semaines', emoji: '📆' },
+  { value: 'monthly' as const, label: 'Chaque mois', emoji: '🗒️' },
+];
+
 export default function CommanderPage() {
   const { items: cart, removeItem, updateQuantity, total: subtotal } = useCart();
 
@@ -19,6 +27,8 @@ export default function CommanderPage() {
   const [city, setCity] = useState('');
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>([]);
   const [selectedDeliveryDay, setSelectedDeliveryDay] = useState<DeliveryDay | null>(null);
+  const [isSubscription, setIsSubscription] = useState(false);
+  const [subscriptionFrequency, setSubscriptionFrequency] = useState<SubscriptionFrequency>(null);
 
   // Calculer les options de livraison au chargement
   useEffect(() => {
@@ -69,6 +79,9 @@ export default function CommanderPage() {
 
     setLoading(true);
 
+    // Sauvegarder l'email pour l'espace client
+    localStorage.setItem('customerEmail', email);
+
     try {
       const response = await fetch('/api/checkout', {
         method: 'POST',
@@ -80,6 +93,8 @@ export default function CommanderPage() {
           deliveryDay: selectedDeliveryDay,
           deliveryDate: formatDateForApi(selectedOption.date),
           deliveryAddress: fullAddress,
+          isSubscription,
+          subscriptionFrequency: isSubscription ? subscriptionFrequency : null,
         }),
       });
 
@@ -313,6 +328,65 @@ export default function CommanderPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Option abonnement */}
+              <div className="bg-gradient-to-r from-fruit-green/10 to-fruit-orange/10 rounded-2xl p-6 border border-fruit-green/30 mt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="text-2xl">🔄</span>
+                    <div>
+                      <h2 className="text-lg font-bold text-white">Abonnement</h2>
+                      <p className="text-sm text-foreground-muted">Recevez automatiquement</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSubscription(!isSubscription);
+                      if (!isSubscription) {
+                        setSubscriptionFrequency('weekly');
+                      } else {
+                        setSubscriptionFrequency(null);
+                      }
+                    }}
+                    className={`w-14 h-8 rounded-full transition-all ${
+                      isSubscription ? 'bg-fruit-green' : 'bg-border'
+                    }`}
+                  >
+                    <div
+                      className={`w-6 h-6 bg-white rounded-full transition-transform ${
+                        isSubscription ? 'translate-x-7' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {isSubscription && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-foreground-muted">Fréquence de livraison :</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      {FREQUENCY_OPTIONS.map((option) => (
+                        <button
+                          key={option.value}
+                          type="button"
+                          onClick={() => setSubscriptionFrequency(option.value)}
+                          className={`p-3 rounded-xl border-2 text-center transition-all ${
+                            subscriptionFrequency === option.value
+                              ? 'border-fruit-green bg-fruit-green/10'
+                              : 'border-border hover:border-fruit-green/50'
+                          }`}
+                        >
+                          <span className="text-xl block mb-1">{option.emoji}</span>
+                          <span className="text-xs text-white">{option.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-fruit-green">
+                      Vous pouvez annuler à tout moment depuis votre espace client
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Récapitulatif */}
@@ -329,6 +403,16 @@ export default function CommanderPage() {
                     <span>Livraison</span>
                     <span className="text-fruit-green">Offerte</span>
                   </div>
+                  {isSubscription && subscriptionFrequency && (
+                    <div className="flex justify-between text-fruit-orange">
+                      <span>🔄 Abonnement</span>
+                      <span className="text-xs">
+                        {subscriptionFrequency === 'weekly' && 'Hebdo'}
+                        {subscriptionFrequency === 'biweekly' && '2 sem.'}
+                        {subscriptionFrequency === 'monthly' && 'Mensuel'}
+                      </span>
+                    </div>
+                  )}
                   <div className="border-t border-border pt-3 flex justify-between">
                     <span className="font-bold text-white">Total</span>
                     <span className="text-2xl font-bold text-fruit-green">{total}€</span>

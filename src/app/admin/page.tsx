@@ -53,11 +53,80 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<string>('all');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<'orders' | 'drivers'>('orders');
+  const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const router = useRouter();
 
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Realtime subscriptions pour les mises à jour automatiques
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const supabase = createClient();
+
+    // Subscription pour les commandes
+    const ordersChannel = supabase
+      .channel('orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+        },
+        (payload) => {
+          console.log('📦 Realtime orders:', payload.eventType);
+
+          if (payload.eventType === 'INSERT') {
+            setOrders((prev) => [payload.new as Order, ...prev]);
+          } else if (payload.eventType === 'UPDATE') {
+            setOrders((prev) =>
+              prev.map((order) =>
+                order.id === payload.new.id ? (payload.new as Order) : order
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setOrders((prev) =>
+              prev.filter((order) => order.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setRealtimeStatus('connected');
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          setRealtimeStatus('disconnected');
+        }
+      });
+
+    // Subscription pour les livreurs (users avec role=driver)
+    const driversChannel = supabase
+      .channel('drivers-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'users',
+          filter: 'role=eq.driver',
+        },
+        (payload) => {
+          console.log('🚚 Realtime drivers:', payload.eventType);
+          // Recharger la liste des livreurs pour avoir les relations
+          fetchDrivers();
+        }
+      )
+      .subscribe();
+
+    // Cleanup des subscriptions
+    return () => {
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(driversChannel);
+    };
+  }, [isAuthenticated]);
 
   const checkAuth = async () => {
     const token = sessionStorage.getItem('admin_token');
@@ -230,6 +299,25 @@ export default function AdminPage() {
           <div className="flex items-center gap-4">
             <Link href="/" className="text-2xl">🧺</Link>
             <h1 className="text-xl font-bold text-white">Admin</h1>
+            {/* Indicateur Realtime */}
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-background text-xs">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  realtimeStatus === 'connected'
+                    ? 'bg-green-500 animate-pulse'
+                    : realtimeStatus === 'connecting'
+                    ? 'bg-yellow-500 animate-pulse'
+                    : 'bg-red-500'
+                }`}
+              />
+              <span className="text-foreground-muted">
+                {realtimeStatus === 'connected'
+                  ? 'Live'
+                  : realtimeStatus === 'connecting'
+                  ? 'Connexion...'
+                  : 'Déconnecté'}
+              </span>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <Link

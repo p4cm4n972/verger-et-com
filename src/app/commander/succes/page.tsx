@@ -1,8 +1,19 @@
+'use client';
+
+import { useEffect } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { useCart } from '@/lib/cart/CartContext';
 
 export default function SuccessPage() {
+  const { clearCart } = useCart();
+
+  // Vider le panier à l'affichage de la page de succès
+  useEffect(() => {
+    clearCart();
+  }, [clearCart]);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />

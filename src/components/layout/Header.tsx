@@ -10,6 +10,7 @@ const navLinks = [
   { href: '/paniers', label: 'Paniers' },
   { href: '/jus', label: 'Jus' },
   { href: '/fruits-secs', label: 'Fruits Secs' },
+  { href: '/mes-commandes', label: 'Mes commandes' },
   { href: '/contact', label: 'Contact' },
 ];
 

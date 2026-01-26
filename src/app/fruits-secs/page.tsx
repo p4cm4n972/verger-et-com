@@ -1,8 +1,12 @@
+'use client';
+
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { DRIED_FRUITS } from '@/lib/constants';
+import { useCart } from '@/lib/cart/CartContext';
 
 export default function FruitsSecsPage() {
+  const { addItem } = useCart();
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -77,7 +81,15 @@ export default function FruitsSecsPage() {
                     <span className="text-foreground-muted text-sm">/ sachet</span>
                   </div>
 
-                  <button className={`w-full py-3 rounded-xl font-semibold border border-${colors[index]} text-${colors[index]} hover:bg-${colors[index]} hover:text-background transition-all`}>
+                  <button
+                    onClick={() => addItem({
+                      type: 'dried',
+                      productId: dried.id,
+                      name: `${emojis[index]} ${dried.name} (${dried.weight}g)`,
+                      price: dried.price,
+                    })}
+                    className={`w-full py-3 rounded-xl font-semibold border border-${colors[index]} text-${colors[index]} hover:bg-${colors[index]} hover:text-background transition-all`}
+                  >
                     Ajouter au panier
                   </button>
                 </div>

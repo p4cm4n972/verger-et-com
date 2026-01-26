@@ -524,7 +524,7 @@ async function handleAcceptOrder(
       assigned_driver_id: driver.id,
       driver_status: 'accepted',
       driver_accepted_at: new Date().toISOString(),
-      status: 'preparing',
+      status: 'confirmed',
     })
     .eq('id', orderId);
 

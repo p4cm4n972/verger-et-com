@@ -1,9 +1,20 @@
-import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Créer le transporter à la demande (meilleur pour serverless)
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: 'smtp-relay.brevo.com',
+    port: 587,
+    secure: false,
+    auth: {
+      user: process.env.BREVO_SMTP_USER,
+      pass: process.env.BREVO_SMTP_KEY,
+    },
+  });
+}
 
-const FROM_EMAIL = 'Verger & Com <contact@verger-et-com.fr>';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'contact@verger-et-com.fr';
+const FROM_EMAIL = process.env.BREVO_SENDER_EMAIL || 'contact@itmade.fr';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'contact@itmade.fr';
 
 interface OrderEmailData {
   orderId: string;
@@ -19,6 +30,31 @@ interface OrderEmailData {
   deliveryDate?: string;
 }
 
+// Fonction utilitaire pour envoyer un email
+async function sendEmail(to: string, subject: string, html: string) {
+  console.log('=== TENTATIVE ENVOI EMAIL ===');
+  console.log('To:', to);
+  console.log('From:', FROM_EMAIL);
+  console.log('SMTP User:', process.env.BREVO_SMTP_USER);
+  console.log('SMTP Key exists:', !!process.env.BREVO_SMTP_KEY);
+
+  try {
+    const transporter = getTransporter();
+    const result = await transporter.sendMail({
+      from: `Verger & Com <${FROM_EMAIL}>`,
+      to,
+      subject,
+      html,
+    });
+    console.log('Email envoyé avec succès:', result.messageId);
+    return true;
+  } catch (error) {
+    console.error('=== ERREUR ENVOI EMAIL ===');
+    console.error('Error:', error);
+    return false;
+  }
+}
+
 // Email de confirmation pour le client
 export async function sendOrderConfirmationEmail(data: OrderEmailData) {
   const { orderId, customerEmail, customerName, total, items, deliveryAddress, deliveryDate } = data;
@@ -31,76 +67,71 @@ export async function sendOrderConfirmationEmail(data: OrderEmailData) {
     </tr>
   `).join('');
 
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [customerEmail],
-      subject: `Commande confirmée #${orderId.slice(0, 8)} - Verger & Com`,
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
-          <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 40px 20px; text-align: center;">
-            <h1 style="color: #ffffff; margin: 0; font-size: 28px;">🧺 Commande Confirmée !</h1>
-          </div>
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
+      <div style="background: #0a0a0a; padding: 30px 20px; text-align: center;">
+        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 200px; height: auto;" />
+      </div>
+      <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px 20px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 28px;">✅ Commande Confirmée !</h1>
+      </div>
 
-          <div style="padding: 40px 20px;">
-            <p style="font-size: 16px; color: #374151;">
-              Bonjour${customerName ? ` ${customerName}` : ''},
-            </p>
-            <p style="font-size: 16px; color: #374151;">
-              Merci pour votre commande ! Nous préparons vos fruits frais avec soin.
-            </p>
+      <div style="padding: 40px 20px;">
+        <p style="font-size: 16px; color: #374151;">
+          Bonjour${customerName ? ` ${customerName}` : ''},
+        </p>
+        <p style="font-size: 16px; color: #374151;">
+          Merci pour votre commande ! Nous préparons vos fruits frais avec soin.
+        </p>
 
-            <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin: 30px 0;">
-              <h2 style="margin: 0 0 15px; color: #111827; font-size: 18px;">Récapitulatif</h2>
-              <p style="margin: 5px 0; color: #6b7280;">
-                <strong>Commande :</strong> #${orderId.slice(0, 8)}
-              </p>
-              ${deliveryDate ? `<p style="margin: 5px 0; color: #6b7280;"><strong>Livraison prévue :</strong> ${new Date(deliveryDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>` : ''}
-              ${deliveryAddress ? `<p style="margin: 5px 0; color: #6b7280;"><strong>Adresse :</strong> ${deliveryAddress}</p>` : ''}
-            </div>
-
-            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
-              <thead>
-                <tr style="background: #f3f4f6;">
-                  <th style="padding: 12px; text-align: left; color: #374151;">Article</th>
-                  <th style="padding: 12px; text-align: center; color: #374151;">Qté</th>
-                  <th style="padding: 12px; text-align: right; color: #374151;">Prix</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsHtml}
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td colspan="2" style="padding: 15px 12px; font-weight: bold; color: #111827;">Total</td>
-                  <td style="padding: 15px 12px; font-weight: bold; color: #22c55e; text-align: right; font-size: 20px;">${total}€</td>
-                </tr>
-              </tfoot>
-            </table>
-
-            <div style="background: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0;">
-              <p style="margin: 0; color: #92400e; font-size: 14px;">
-                📦 Vous recevrez un email lorsque votre commande sera en cours de livraison.
-              </p>
-            </div>
-          </div>
-
-          <div style="background: #f9fafb; padding: 30px 20px; text-align: center;">
-            <p style="margin: 0 0 10px; color: #6b7280; font-size: 14px;">
-              Une question ? Contactez-nous à contact@verger-et-com.fr
-            </p>
-            <p style="margin: 0; color: #9ca3af; font-size: 12px;">
-              Verger & Com - Fruits frais pour entreprises
-            </p>
-          </div>
+        <div style="background: #f9fafb; border-radius: 12px; padding: 20px; margin: 30px 0;">
+          <h2 style="margin: 0 0 15px; color: #111827; font-size: 18px;">Récapitulatif</h2>
+          <p style="margin: 5px 0; color: #6b7280;">
+            <strong>Commande :</strong> #${orderId.slice(0, 8)}
+          </p>
+          ${deliveryDate ? `<p style="margin: 5px 0; color: #6b7280;"><strong>Livraison prévue :</strong> ${new Date(deliveryDate).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>` : ''}
+          ${deliveryAddress ? `<p style="margin: 5px 0; color: #6b7280;"><strong>Adresse :</strong> ${deliveryAddress}</p>` : ''}
         </div>
-      `,
-    });
 
-    console.log(`Email de confirmation envoyé à ${customerEmail}`);
-  } catch (error) {
-    console.error('Erreur envoi email confirmation:', error);
-  }
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <thead>
+            <tr style="background: #f3f4f6;">
+              <th style="padding: 12px; text-align: left; color: #374151;">Article</th>
+              <th style="padding: 12px; text-align: center; color: #374151;">Qté</th>
+              <th style="padding: 12px; text-align: right; color: #374151;">Prix</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="2" style="padding: 15px 12px; font-weight: bold; color: #111827;">Total</td>
+              <td style="padding: 15px 12px; font-weight: bold; color: #22c55e; text-align: right; font-size: 20px;">${total}€</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div style="background: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0;">
+          <p style="margin: 0; color: #92400e; font-size: 14px;">
+            📦 Vous recevrez un email lorsque votre commande sera en cours de livraison.
+          </p>
+        </div>
+      </div>
+
+      <div style="background: #0a0a0a; padding: 30px 20px; text-align: center;">
+        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 120px; height: auto; margin-bottom: 15px;" />
+        <p style="margin: 0 0 10px; color: #9ca3af; font-size: 14px;">
+          Une question ? Contactez-nous à contact@verger-et-com.fr
+        </p>
+        <p style="margin: 0; color: #6b7280; font-size: 12px;">
+          Verger & Com - Fruits frais pour entreprises
+        </p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(customerEmail, `Commande confirmée #${orderId.slice(0, 8)} - Verger & Com`, html);
 }
 
 // Email de notification pour l'admin
@@ -109,45 +140,37 @@ export async function sendNewOrderNotificationEmail(data: OrderEmailData) {
 
   const itemsList = items.map(item => `• ${item.name} x${item.quantity} - ${item.price}€`).join('\n');
 
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [ADMIN_EMAIL],
-      subject: `🆕 Nouvelle commande #${orderId.slice(0, 8)} - ${total}€`,
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: #0a0a0a; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0;">
-            <h1 style="color: #22c55e; margin: 0;">🧺 Nouvelle Commande !</h1>
-          </div>
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #0a0a0a; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0;">
+        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 180px; height: auto; margin-bottom: 20px;" />
+        <h1 style="color: #22c55e; margin: 0;">🆕 Nouvelle Commande !</h1>
+      </div>
 
-          <div style="background: #ffffff; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-            <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
-              <h2 style="margin: 0 0 10px; color: #15803d;">Total: ${total}€</h2>
-              <p style="margin: 0; color: #166534;">Commande #${orderId.slice(0, 8)}</p>
-            </div>
-
-            <h3 style="color: #374151; margin-bottom: 10px;">Client</h3>
-            <p style="color: #6b7280; margin: 5px 0;">📧 ${customerEmail}</p>
-            ${deliveryAddress ? `<p style="color: #6b7280; margin: 5px 0;">📍 ${deliveryAddress}</p>` : ''}
-            ${deliveryDate ? `<p style="color: #6b7280; margin: 5px 0;">📅 Livraison: ${new Date(deliveryDate).toLocaleDateString('fr-FR')}</p>` : ''}
-
-            <h3 style="color: #374151; margin: 20px 0 10px;">Articles</h3>
-            <pre style="background: #f9fafb; padding: 15px; border-radius: 8px; color: #374151; white-space: pre-wrap;">${itemsList}</pre>
-
-            <div style="margin-top: 30px; text-align: center;">
-              <a href="https://verger-et-com.vercel.app/admin" style="display: inline-block; background: #22c55e; color: #ffffff; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">
-                Voir dans l'admin
-              </a>
-            </div>
-          </div>
+      <div style="background: #ffffff; padding: 30px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <div style="background: #f0fdf4; border: 1px solid #22c55e; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+          <h2 style="margin: 0 0 10px; color: #15803d;">Total: ${total}€</h2>
+          <p style="margin: 0; color: #166534;">Commande #${orderId.slice(0, 8)}</p>
         </div>
-      `,
-    });
 
-    console.log(`Notification admin envoyée pour commande ${orderId}`);
-  } catch (error) {
-    console.error('Erreur envoi notification admin:', error);
-  }
+        <h3 style="color: #374151; margin-bottom: 10px;">Client</h3>
+        <p style="color: #6b7280; margin: 5px 0;">📧 ${customerEmail}</p>
+        ${deliveryAddress ? `<p style="color: #6b7280; margin: 5px 0;">📍 ${deliveryAddress}</p>` : ''}
+        ${deliveryDate ? `<p style="color: #6b7280; margin: 5px 0;">📅 Livraison: ${new Date(deliveryDate).toLocaleDateString('fr-FR')}</p>` : ''}
+
+        <h3 style="color: #374151; margin: 20px 0 10px;">Articles</h3>
+        <pre style="background: #f9fafb; padding: 15px; border-radius: 8px; color: #374151; white-space: pre-wrap;">${itemsList}</pre>
+
+        <div style="margin-top: 30px; text-align: center;">
+          <a href="https://verger-et-com.vercel.app/admin" style="display: inline-block; background: #22c55e; color: #ffffff; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Voir dans l'admin
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(ADMIN_EMAIL, `🆕 Nouvelle commande #${orderId.slice(0, 8)} - ${total}€`, html);
 }
 
 // Email de changement de statut
@@ -178,41 +201,62 @@ export async function sendOrderStatusUpdateEmail(
   const status = statusMessages[newStatus];
   if (!status) return;
 
-  try {
-    await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [customerEmail],
-      subject: `${status.emoji} ${status.title} - Commande #${orderId.slice(0, 8)}`,
-      html: `
-        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
-          <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 40px 20px; text-align: center; border-radius: 12px 12px 0 0;">
-            <div style="font-size: 60px; margin-bottom: 10px;">${status.emoji}</div>
-            <h1 style="color: #ffffff; margin: 0;">${status.title}</h1>
-          </div>
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #0a0a0a; padding: 25px 20px; text-align: center; border-radius: 12px 12px 0 0;">
+        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 160px; height: auto;" />
+      </div>
+      <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px 20px; text-align: center;">
+        <div style="font-size: 50px; margin-bottom: 10px;">${status.emoji}</div>
+        <h1 style="color: #ffffff; margin: 0;">${status.title}</h1>
+      </div>
 
-          <div style="background: #ffffff; padding: 40px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
-            <p style="font-size: 16px; color: #374151;">
-              Bonjour${customerName ? ` ${customerName}` : ''},
-            </p>
-            <p style="font-size: 16px; color: #374151;">
-              ${status.message}
-            </p>
-            <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
-              Commande #${orderId.slice(0, 8)}
-            </p>
-          </div>
+      <div style="background: #ffffff; padding: 40px 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+        <p style="font-size: 16px; color: #374151;">
+          Bonjour${customerName ? ` ${customerName}` : ''},
+        </p>
+        <p style="font-size: 16px; color: #374151;">
+          ${status.message}
+        </p>
+        <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
+          Commande #${orderId.slice(0, 8)}
+        </p>
+      </div>
 
-          <div style="text-align: center; padding: 20px;">
-            <p style="color: #9ca3af; font-size: 12px;">
-              Verger & Com - Fruits frais pour entreprises
-            </p>
-          </div>
+      <div style="text-align: center; padding: 20px;">
+        <p style="color: #9ca3af; font-size: 12px;">
+          Verger & Com - Fruits frais pour entreprises
+        </p>
+      </div>
+    </div>
+  `;
+
+  await sendEmail(customerEmail, `${status.emoji} ${status.title} - Commande #${orderId.slice(0, 8)}`, html);
+}
+
+// Email de code de vérification
+export async function sendVerificationCodeEmail(email: string, code: string) {
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #0a0a0a; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0;">
+        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 180px; height: auto;" />
+      </div>
+      <div style="background: #ffffff; padding: 40px 20px; border: 1px solid #e5e7eb; border-top: none;">
+        <p style="font-size: 16px; color: #374151;">Bonjour,</p>
+        <p style="font-size: 16px; color: #374151;">Voici votre code de vérification :</p>
+        <div style="background: #f3f4f6; padding: 25px; text-align: center; border-radius: 12px; margin: 25px 0;">
+          <span style="font-size: 36px; font-weight: bold; letter-spacing: 10px; color: #22c55e;">${code}</span>
         </div>
-      `,
-    });
+        <p style="font-size: 14px; color: #6b7280;">Ce code expire dans <strong>10 minutes</strong>.</p>
+        <p style="font-size: 14px; color: #6b7280;">Si vous n'avez pas demandé ce code, ignorez cet email.</p>
+      </div>
+      <div style="background: #0a0a0a; padding: 20px; text-align: center; border-radius: 0 0 12px 12px;">
+        <p style="color: #6b7280; font-size: 12px; margin: 0;">
+          Verger & Com - Fruits frais pour entreprises
+        </p>
+      </div>
+    </div>
+  `;
 
-    console.log(`Email de statut envoyé à ${customerEmail}`);
-  } catch (error) {
-    console.error('Erreur envoi email statut:', error);
-  }
+  return sendEmail(email, 'Votre code de vérification - Verger & Com', html);
 }

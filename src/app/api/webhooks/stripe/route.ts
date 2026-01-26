@@ -99,7 +99,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   // Créer la commande dans Supabase
   const orderData = {
     company_id: companyId || null,
-    status: 'confirmed' as const,
+    status: 'pending' as const,
     subtotal,
     delivery_fee: 0,
     total,
@@ -179,43 +179,53 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   // Notification à l'admin
   await sendNewOrderNotificationEmail(emailData);
 
-  // Notification Telegram aux livreurs
-  if (deliveryDay) {
-    try {
-      // Récupérer tous les livreurs actifs avec un chat ID Telegram
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: drivers } = await (supabase as any)
-        .from('users')
-        .select('telegram_chat_id')
-        .eq('role', 'driver')
-        .eq('is_active', true)
-        .not('telegram_chat_id', 'is', null);
+  // Notification Telegram aux livreurs (envoyée même sans deliveryDay)
+  try {
+    console.log('=== NOTIFICATION TELEGRAM ===');
+    console.log('deliveryDay:', deliveryDay);
 
-      if (drivers && drivers.length > 0) {
-        const driverChatIds = drivers
-          .map((d: { telegram_chat_id: string }) => d.telegram_chat_id)
-          .filter(Boolean);
+    // Récupérer tous les livreurs actifs avec un chat ID Telegram
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: drivers, error: driversError } = await (supabase as any)
+      .from('users')
+      .select('telegram_chat_id')
+      .eq('role', 'driver')
+      .eq('is_active', true)
+      .not('telegram_chat_id', 'is', null);
 
-        await sendNewOrderNotificationToDrivers(driverChatIds, {
-          orderId,
-          customerEmail: session.customer_email || '',
-          customerPhone: customerPhone || '',
-          total,
-          deliveryDate: deliveryDate || '',
-          deliveryDay,
-          deliveryAddress,
-          items: items.map((item: { productId: string; quantity: number }) => ({
-            name: item.productId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
-            quantity: item.quantity,
-          })),
-        });
-
-        console.log(`Notification Telegram envoyée à ${driverChatIds.length} livreurs`);
-      }
-    } catch (telegramError) {
-      console.error('Erreur notification Telegram:', telegramError);
-      // Ne pas bloquer la commande si la notification échoue
+    console.log('Livreurs trouvés:', drivers?.length || 0);
+    if (driversError) {
+      console.error('Erreur récupération livreurs:', driversError);
     }
+
+    if (drivers && drivers.length > 0) {
+      const driverChatIds = drivers
+        .map((d: { telegram_chat_id: string }) => d.telegram_chat_id)
+        .filter(Boolean);
+
+      console.log('Chat IDs Telegram:', driverChatIds);
+
+      await sendNewOrderNotificationToDrivers(driverChatIds, {
+        orderId,
+        customerEmail: session.customer_email || '',
+        customerPhone: customerPhone || '',
+        total,
+        deliveryDate: deliveryDate || new Date().toISOString().split('T')[0],
+        deliveryDay: deliveryDay || 'monday',
+        deliveryAddress,
+        items: items.map((item: { productId: string; quantity: number }) => ({
+          name: item.productId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          quantity: item.quantity,
+        })),
+      });
+
+      console.log(`Notification Telegram envoyée à ${driverChatIds.length} livreurs`);
+    } else {
+      console.log('Aucun livreur avec telegram_chat_id trouvé');
+    }
+  } catch (telegramError) {
+    console.error('Erreur notification Telegram:', telegramError);
+    // Ne pas bloquer la commande si la notification échoue
   }
 }
 
