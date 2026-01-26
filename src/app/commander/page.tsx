@@ -8,6 +8,14 @@ import { useCart } from '@/lib/cart/CartContext';
 import { getDeliveryOptions, formatDateForApi, type DeliveryDay, type DeliveryOption } from '@/lib/delivery';
 
 type SubscriptionFrequency = 'weekly' | 'biweekly' | 'monthly' | null;
+type SubscriptionPlan = 'discovery' | 'team' | 'enterprise' | null;
+
+// Mapper les IDs de paniers vers les plans d'abonnement Stripe
+const BASKET_TO_PLAN: Record<string, SubscriptionPlan> = {
+  'basket-5kg': 'discovery',
+  'basket-8kg': 'team',
+  'basket-12kg': 'enterprise',
+};
 
 const FREQUENCY_OPTIONS = [
   { value: 'weekly' as const, label: 'Chaque semaine', emoji: '🗓️' },
@@ -95,6 +103,12 @@ export default function CommanderPage() {
           deliveryAddress: fullAddress,
           isSubscription,
           subscriptionFrequency: isSubscription ? subscriptionFrequency : null,
+          // Déterminer le plan d'abonnement basé sur le premier panier
+          subscriptionPlan: isSubscription
+            ? (cart.find(item => item.type === 'basket')?.productId
+                ? BASKET_TO_PLAN[cart.find(item => item.type === 'basket')!.productId]
+                : null)
+            : null,
         }),
       });
 

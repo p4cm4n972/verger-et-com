@@ -1,22 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { cancelStripeSubscription, getStripeSubscription } from '@/lib/stripe/server';
 
 interface Company {
   id: string;
+  stripe_customer_id: string | null;
 }
 
-interface Subscription {
+interface DBSubscription {
   id: string;
   company_id: string;
   frequency: string;
   default_order_data: unknown;
   next_delivery_date: string;
   is_active: boolean;
+  stripe_subscription_id: string | null;
+  stripe_status: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
   created_at: string;
   updated_at: string;
 }
 
-// GET - Récupérer l'abonnement actif par email
+// GET - Récupérer l'abonnement actif par email avec données Stripe
 export async function GET(request: NextRequest) {
   try {
     const email = request.nextUrl.searchParams.get('email');
@@ -33,7 +39,7 @@ export async function GET(request: NextRequest) {
     // Trouver l'entreprise par email
     const { data: company } = await supabase
       .from('companies')
-      .select('id')
+      .select('id, stripe_customer_id')
       .eq('email', email.toLowerCase().trim())
       .single() as { data: Company | null };
 
@@ -47,7 +53,7 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('company_id', company.id)
       .eq('is_active', true)
-      .single() as { data: Subscription | null; error: { code: string } | null };
+      .single() as { data: DBSubscription | null; error: { code: string } | null };
 
     if (error && error.code !== 'PGRST116') {
       console.error('Erreur récupération abonnement:', error);
@@ -57,7 +63,54 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    return NextResponse.json({ subscription: subscription || null });
+    // Si un abonnement Stripe existe, synchroniser les données depuis Stripe
+    if (subscription?.stripe_subscription_id) {
+      try {
+        const stripeSubscription = await getStripeSubscription(subscription.stripe_subscription_id);
+
+        // Extraire les données de l'abonnement Stripe
+        // Note: Dans Stripe API v2023+, current_period_end est sur les items
+        const periodEnd = stripeSubscription.items?.data[0]?.current_period_end
+          || stripeSubscription.cancel_at
+          || null;
+
+        const stripeData = {
+          status: stripeSubscription.status,
+          current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+          cancel_at_period_end: stripeSubscription.cancel_at_period_end,
+        };
+
+        // Mettre à jour les données locales avec Stripe (async, non bloquant)
+        supabase
+          .from('subscriptions')
+          .update({
+            stripe_status: stripeData.status,
+            current_period_end: stripeData.current_period_end,
+            cancel_at_period_end: stripeData.cancel_at_period_end,
+          } as never)
+          .eq('id', subscription.id)
+          .then(() => console.log('Subscription synced with Stripe'));
+
+        // Retourner les données Stripe fraîches
+        return NextResponse.json({
+          subscription: {
+            ...subscription,
+            stripe_status: stripeData.status,
+            current_period_end: stripeData.current_period_end,
+            cancel_at_period_end: stripeData.cancel_at_period_end,
+          },
+          hasStripeCustomer: !!company.stripe_customer_id,
+        });
+      } catch (stripeError) {
+        console.error('Erreur sync Stripe:', stripeError);
+        // Retourner les données locales si Stripe échoue
+      }
+    }
+
+    return NextResponse.json({
+      subscription: subscription || null,
+      hasStripeCustomer: !!company.stripe_customer_id,
+    });
   } catch (error) {
     console.error('Erreur API customer/subscription:', error);
     return NextResponse.json(
@@ -131,7 +184,7 @@ export async function POST(request: NextRequest) {
         is_active: true,
       } as never)
       .select()
-      .single() as { data: Subscription | null; error: Error | null };
+      .single() as { data: DBSubscription | null; error: Error | null };
 
     if (error) {
       console.error('Erreur création abonnement:', error);
@@ -151,7 +204,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE - Annuler un abonnement
+// DELETE - Annuler un abonnement (via Stripe si disponible)
 export async function DELETE(request: NextRequest) {
   try {
     const email = request.nextUrl.searchParams.get('email');
@@ -179,12 +232,54 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Désactiver l'abonnement
+    // Trouver l'abonnement actif
+    const { data: subscription } = await supabase
+      .from('subscriptions')
+      .select('id, stripe_subscription_id')
+      .eq('company_id', company.id)
+      .eq('is_active', true)
+      .single() as { data: { id: string; stripe_subscription_id: string | null } | null };
+
+    if (!subscription) {
+      return NextResponse.json(
+        { error: 'Aucun abonnement actif trouvé' },
+        { status: 404 }
+      );
+    }
+
+    // Si un abonnement Stripe existe, l'annuler via Stripe (cancel_at_period_end)
+    if (subscription.stripe_subscription_id) {
+      try {
+        await cancelStripeSubscription(subscription.stripe_subscription_id);
+
+        // Mettre à jour localement
+        await supabase
+          .from('subscriptions')
+          .update({
+            cancel_at_period_end: true,
+            stripe_status: 'active', // Reste actif jusqu'à la fin de la période
+          } as never)
+          .eq('id', subscription.id);
+
+        return NextResponse.json({
+          success: true,
+          message: 'Votre abonnement sera annulé à la fin de la période de facturation en cours.',
+          cancelAtPeriodEnd: true,
+        });
+      } catch (stripeError) {
+        console.error('Erreur annulation Stripe:', stripeError);
+        return NextResponse.json(
+          { error: 'Erreur lors de l\'annulation auprès de Stripe' },
+          { status: 500 }
+        );
+      }
+    }
+
+    // Sinon, désactiver l'abonnement localement (ancienne méthode)
     const { error } = await supabase
       .from('subscriptions')
       .update({ is_active: false } as never)
-      .eq('company_id', company.id)
-      .eq('is_active', true);
+      .eq('id', subscription.id);
 
     if (error) {
       console.error('Erreur annulation abonnement:', error);

@@ -250,3 +250,73 @@ export async function sendVerificationCodeEmail(email: string, code: string) {
 
   return sendEmail(email, 'Votre code de vérification - Verger & Com', html);
 }
+
+// Email d'échec de paiement
+interface PaymentFailedData {
+  customerEmail: string;
+  invoiceId: string;
+  amount: number;
+  nextAttempt: string | null;
+}
+
+export async function sendPaymentFailedEmail(data: PaymentFailedData) {
+  const { customerEmail, invoiceId, amount, nextAttempt } = data;
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+      <div style="background: #0a0a0a; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0;">
+        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 180px; height: auto;" />
+      </div>
+      <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 30px 20px; text-align: center;">
+        <div style="font-size: 50px; margin-bottom: 10px;">⚠️</div>
+        <h1 style="color: #ffffff; margin: 0;">Échec de paiement</h1>
+      </div>
+
+      <div style="background: #ffffff; padding: 40px 20px; border: 1px solid #e5e7eb; border-top: none;">
+        <p style="font-size: 16px; color: #374151;">Bonjour,</p>
+        <p style="font-size: 16px; color: #374151;">
+          Nous n'avons pas pu traiter le paiement de votre abonnement Verger & Com.
+        </p>
+
+        <div style="background: #fef2f2; border: 1px solid #ef4444; border-radius: 8px; padding: 20px; margin: 25px 0;">
+          <p style="margin: 0 0 10px; color: #991b1b; font-weight: bold;">
+            Montant : ${amount}€
+          </p>
+          <p style="margin: 0; color: #991b1b; font-size: 14px;">
+            Référence : ${invoiceId.slice(0, 20)}...
+          </p>
+        </div>
+
+        ${nextAttempt ? `
+        <p style="font-size: 16px; color: #374151;">
+          <strong>Prochaine tentative :</strong> ${nextAttempt}
+        </p>
+        <p style="font-size: 14px; color: #6b7280;">
+          Veuillez vous assurer que votre moyen de paiement est valide avant cette date.
+        </p>
+        ` : `
+        <p style="font-size: 14px; color: #6b7280;">
+          Veuillez mettre à jour votre moyen de paiement pour continuer à recevoir vos livraisons.
+        </p>
+        `}
+
+        <div style="margin-top: 30px; text-align: center;">
+          <a href="https://verger-et-com.vercel.app/mon-abonnement" style="display: inline-block; background: #22c55e; color: #ffffff; padding: 14px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+            Mettre à jour mon paiement
+          </a>
+        </div>
+      </div>
+
+      <div style="background: #0a0a0a; padding: 20px; text-align: center; border-radius: 0 0 12px 12px;">
+        <p style="color: #9ca3af; font-size: 14px; margin: 0 0 10px;">
+          Une question ? Contactez-nous à contact@verger-et-com.fr
+        </p>
+        <p style="color: #6b7280; font-size: 12px; margin: 0;">
+          Verger & Com - Fruits frais pour entreprises
+        </p>
+      </div>
+    </div>
+  `;
+
+  return sendEmail(customerEmail, '⚠️ Échec de paiement - Verger & Com', html);
+}

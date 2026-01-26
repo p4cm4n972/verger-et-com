@@ -58,15 +58,41 @@ export async function createCheckoutSession({
   return session;
 }
 
-// Créer une session de checkout pour abonnement
+// Récupérer ou créer un client Stripe par email
+export async function getOrCreateStripeCustomer(email: string, name?: string): Promise<string> {
+  // Chercher un client existant par email
+  const existingCustomers = await stripe.customers.list({
+    email: email.toLowerCase().trim(),
+    limit: 1,
+  });
+
+  if (existingCustomers.data.length > 0) {
+    return existingCustomers.data[0].id;
+  }
+
+  // Créer un nouveau client
+  const customer = await stripe.customers.create({
+    email: email.toLowerCase().trim(),
+    name: name || undefined,
+    metadata: {
+      source: 'verger-et-com',
+    },
+  });
+
+  return customer.id;
+}
+
+// Créer une session de checkout pour abonnement avec customerId
 export async function createSubscriptionCheckoutSession({
   priceId,
+  customerId,
   customerEmail,
   metadata,
   successUrl,
   cancelUrl,
 }: {
   priceId: string;
+  customerId?: string;
   customerEmail?: string;
   metadata?: Record<string, string>;
   successUrl: string;
@@ -81,14 +107,50 @@ export async function createSubscriptionCheckoutSession({
       },
     ],
     mode: 'subscription',
-    customer_email: customerEmail,
+    customer: customerId,
+    customer_email: customerId ? undefined : customerEmail,
     metadata,
+    subscription_data: {
+      metadata,
+    },
     success_url: successUrl,
     cancel_url: cancelUrl,
     locale: 'fr',
+    billing_address_collection: 'required',
   });
 
   return session;
+}
+
+// Créer une session du Customer Portal Stripe
+export async function createCustomerPortalSession({
+  customerId,
+  returnUrl,
+}: {
+  customerId: string;
+  returnUrl: string;
+}) {
+  const session = await stripe.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: returnUrl,
+  });
+
+  return session;
+}
+
+// Annuler un abonnement Stripe (à la fin de la période)
+export async function cancelStripeSubscription(subscriptionId: string) {
+  const subscription = await stripe.subscriptions.update(subscriptionId, {
+    cancel_at_period_end: true,
+  });
+
+  return subscription;
+}
+
+// Récupérer un abonnement Stripe
+export async function getStripeSubscription(subscriptionId: string): Promise<Stripe.Subscription> {
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  return subscription as Stripe.Subscription;
 }
 
 // Récupérer une session de checkout

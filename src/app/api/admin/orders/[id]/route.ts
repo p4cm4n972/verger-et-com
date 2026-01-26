@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { sendOrderStatusUpdateEmail } from '@/lib/email';
+import { sendOrderAssignedNotification } from '@/lib/telegram';
 import { verifyToken } from '../../auth/route';
 
 export async function PATCH(
@@ -56,6 +57,28 @@ export async function PATCH(
 
     if (customerEmail && status === 'delivered') {
       await sendOrderStatusUpdateEmail(customerEmail, id, status);
+    }
+
+    // Envoyer une notification Telegram au livreur quand il est assigné
+    if (assigned_driver_id && assigned_driver_id !== order.assigned_driver_id) {
+      // Récupérer le telegram_chat_id du livreur
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: driver } = await (supabase as any)
+        .from('users')
+        .select('telegram_chat_id')
+        .eq('id', assigned_driver_id)
+        .single();
+
+      if (driver?.telegram_chat_id) {
+        await sendOrderAssignedNotification(driver.telegram_chat_id, {
+          orderId: id,
+          total: order.total,
+          deliveryDate: order.delivery_date,
+          deliveryAddress: order.delivery_address,
+          customerEmail: order.customer_email,
+          customerPhone: order.customer_phone,
+        });
+      }
     }
 
     return NextResponse.json({ success: true });

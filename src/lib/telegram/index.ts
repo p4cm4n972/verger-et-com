@@ -119,6 +119,51 @@ ${itemsList}
 }
 
 /**
+ * Envoie une notification au livreur quand une commande lui est attribuée par l'admin
+ */
+export async function sendOrderAssignedNotification(
+  chatId: string,
+  orderData: {
+    orderId: string;
+    total: number;
+    deliveryDate: string;
+    deliveryAddress: string;
+    customerEmail: string;
+    customerPhone?: string;
+  }
+): Promise<void> {
+  const messageText = `
+🚚 <b>COMMANDE ATTRIBUÉE</b>
+
+📦 <b>Commande #${orderData.orderId.slice(0, 8)}</b>
+
+📅 <b>Date de livraison:</b> ${orderData.deliveryDate}
+
+📍 <b>Adresse:</b>
+${orderData.deliveryAddress || 'À confirmer'}
+
+💰 <b>Total:</b> ${orderData.total}€
+💵 <b>Ta part:</b> ${orderData.total - 10}€
+
+👤 <b>Client:</b> ${orderData.customerEmail}
+${orderData.customerPhone ? `📞 <b>Tél:</b> ${orderData.customerPhone}` : ''}
+
+Une fois la livraison effectuée, clique sur le bouton ci-dessous:
+`.trim();
+
+  const keyboard: InlineKeyboardButton[][] = [
+    [{ text: '📦 Valider la livraison', callback_data: `deliver_order:${orderData.orderId}` }],
+  ];
+
+  await sendTelegramMessage({
+    chat_id: chatId,
+    text: messageText,
+    parse_mode: 'HTML',
+    reply_markup: { inline_keyboard: keyboard },
+  });
+}
+
+/**
  * Envoie une confirmation d'acceptation au livreur
  */
 export async function sendOrderAcceptedConfirmation(

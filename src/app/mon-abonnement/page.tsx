@@ -11,6 +11,10 @@ interface Subscription {
   default_order_data: unknown;
   next_delivery_date: string;
   is_active: boolean;
+  stripe_subscription_id: string | null;
+  stripe_status: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
   created_at: string;
 }
 
@@ -20,6 +24,17 @@ const FREQUENCY_LABELS: Record<string, { label: string; description: string }> =
   monthly: { label: 'Mensuel', description: 'Chaque mois' },
 };
 
+const STRIPE_STATUS_LABELS: Record<string, { label: string; color: string }> = {
+  active: { label: 'Actif', color: 'text-fruit-green' },
+  trialing: { label: 'Période d\'essai', color: 'text-fruit-orange' },
+  past_due: { label: 'Paiement en retard', color: 'text-fruit-red' },
+  canceled: { label: 'Annulé', color: 'text-foreground-muted' },
+  unpaid: { label: 'Impayé', color: 'text-fruit-red' },
+  incomplete: { label: 'Incomplet', color: 'text-fruit-orange' },
+  incomplete_expired: { label: 'Expiré', color: 'text-fruit-red' },
+  paused: { label: 'En pause', color: 'text-fruit-orange' },
+};
+
 type Step = 'email' | 'code' | 'subscription';
 
 export default function MonAbonnementPage() {
@@ -27,9 +42,11 @@ export default function MonAbonnementPage() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [hasStripeCustomer, setHasStripeCustomer] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [openingPortal, setOpeningPortal] = useState(false);
 
   // Vérifier si on a une session en cours
   useEffect(() => {
@@ -114,6 +131,7 @@ export default function MonAbonnementPage() {
       const data = await response.json();
       if (!data.error) {
         setSubscription(data.subscription);
+        setHasStripeCustomer(data.hasStripeCustomer || false);
       }
     } catch {
       setError('Erreur lors du chargement');
@@ -122,8 +140,37 @@ export default function MonAbonnementPage() {
     }
   };
 
+  const handleOpenCustomerPortal = async () => {
+    setOpeningPortal(true);
+    setError('');
+
+    try {
+      const response = await fetch('/api/customer/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (data.error) {
+        setError(data.error);
+      } else if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      setError('Erreur lors de l\'ouverture du portail');
+    } finally {
+      setOpeningPortal(false);
+    }
+  };
+
   const handleCancel = async () => {
-    if (!confirm('Êtes-vous sûr de vouloir annuler votre abonnement ?')) {
+    const confirmMessage = subscription?.stripe_subscription_id
+      ? 'Êtes-vous sûr de vouloir annuler votre abonnement ? Il restera actif jusqu\'à la fin de la période de facturation en cours.'
+      : 'Êtes-vous sûr de vouloir annuler votre abonnement ?';
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -138,7 +185,14 @@ export default function MonAbonnementPage() {
 
       if (data.error) {
         setError(data.error);
+      } else if (data.cancelAtPeriodEnd) {
+        // Annulation Stripe : reste actif jusqu'à la fin de la période
+        alert(data.message || 'Votre abonnement sera annulé à la fin de la période de facturation.');
+        setSubscription((prev) =>
+          prev ? { ...prev, cancel_at_period_end: true } : null
+        );
       } else {
+        // Annulation immédiate (ancienne méthode)
         setSubscription(null);
         alert('Votre abonnement a été annulé');
       }
@@ -290,16 +344,41 @@ export default function MonAbonnementPage() {
                   <p className="text-foreground-muted">Chargement...</p>
                 </div>
               ) : subscription ? (
-                <div className="bg-background-card rounded-2xl p-6 border border-fruit-green/30">
+                <div className={`bg-background-card rounded-2xl p-6 border ${subscription.cancel_at_period_end ? 'border-fruit-orange/30' : 'border-fruit-green/30'}`}>
+                  {/* Alerte si annulation programmée */}
+                  {subscription.cancel_at_period_end && (
+                    <div className="bg-fruit-orange/10 border border-fruit-orange/30 rounded-xl p-4 mb-6">
+                      <div className="flex items-center gap-2 text-fruit-orange">
+                        <span className="text-xl">⚠️</span>
+                        <div>
+                          <p className="font-semibold">Annulation programmée</p>
+                          <p className="text-sm text-fruit-orange/80">
+                            Votre abonnement sera annulé le{' '}
+                            {subscription.current_period_end
+                              ? formatDate(subscription.current_period_end)
+                              : 'à la fin de la période en cours'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-3 mb-6">
                     <span className="text-3xl">🔄</span>
                     <div>
                       <h2 className="text-xl font-bold text-white">
-                        Abonnement actif
+                        {subscription.cancel_at_period_end ? 'Abonnement (annulation programmée)' : 'Abonnement actif'}
                       </h2>
-                      <p className="text-fruit-green text-sm">
-                        {FREQUENCY_LABELS[subscription.frequency]?.label}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-fruit-green text-sm">
+                          {FREQUENCY_LABELS[subscription.frequency]?.label}
+                        </p>
+                        {subscription.stripe_status && (
+                          <span className={`text-xs px-2 py-0.5 rounded-full bg-background ${STRIPE_STATUS_LABELS[subscription.stripe_status]?.color || 'text-foreground-muted'}`}>
+                            {STRIPE_STATUS_LABELS[subscription.stripe_status]?.label || subscription.stripe_status}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -324,6 +403,18 @@ export default function MonAbonnementPage() {
                       <span className="text-2xl">🚚</span>
                     </div>
 
+                    {subscription.current_period_end && !subscription.cancel_at_period_end && (
+                      <div className="flex justify-between items-center p-4 bg-background rounded-xl">
+                        <div>
+                          <p className="text-sm text-foreground-muted">Prochain prélèvement</p>
+                          <p className="text-white font-medium capitalize">
+                            {formatDate(subscription.current_period_end)}
+                          </p>
+                        </div>
+                        <span className="text-2xl">💳</span>
+                      </div>
+                    )}
+
                     <div className="flex justify-between items-center p-4 bg-background rounded-xl">
                       <div>
                         <p className="text-sm text-foreground-muted">Abonné depuis</p>
@@ -336,19 +427,31 @@ export default function MonAbonnementPage() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-3">
+                    {/* Bouton Customer Portal si Stripe */}
+                    {hasStripeCustomer && (
+                      <button
+                        onClick={handleOpenCustomerPortal}
+                        disabled={openingPortal}
+                        className="flex-1 text-center px-6 py-3 bg-fruit-green text-background font-semibold rounded-xl hover:opacity-90 transition-all disabled:opacity-50"
+                      >
+                        {openingPortal ? 'Ouverture...' : '💳 Gérer mon paiement'}
+                      </button>
+                    )}
                     <Link
                       href="/commander"
-                      className="flex-1 text-center px-6 py-3 bg-fruit-green text-background font-semibold rounded-xl hover:opacity-90 transition-all"
+                      className={`${hasStripeCustomer ? '' : 'flex-1'} text-center px-6 py-3 border-2 border-fruit-green text-fruit-green font-semibold rounded-xl hover:bg-fruit-green/10 transition-all`}
                     >
                       Modifier ma commande
                     </Link>
-                    <button
-                      onClick={handleCancel}
-                      disabled={cancelling}
-                      className="px-6 py-3 border-2 border-fruit-red/50 text-fruit-red font-semibold rounded-xl hover:bg-fruit-red/10 transition-all disabled:opacity-50"
-                    >
-                      {cancelling ? 'Annulation...' : 'Annuler l\'abonnement'}
-                    </button>
+                    {!subscription.cancel_at_period_end && (
+                      <button
+                        onClick={handleCancel}
+                        disabled={cancelling}
+                        className="px-6 py-3 border-2 border-fruit-red/50 text-fruit-red font-semibold rounded-xl hover:bg-fruit-red/10 transition-all disabled:opacity-50"
+                      >
+                        {cancelling ? 'Annulation...' : 'Annuler'}
+                      </button>
+                    )}
                   </div>
                 </div>
               ) : (

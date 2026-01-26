@@ -5,12 +5,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { constructWebhookEvent, stripe } from '@/lib/stripe/server';
 import { createClient } from '@/lib/supabase/server';
-import { sendOrderConfirmationEmail, sendNewOrderNotificationEmail } from '@/lib/email';
+import { sendOrderConfirmationEmail, sendNewOrderNotificationEmail, sendPaymentFailedEmail } from '@/lib/email';
 import { sendNewOrderNotificationToDrivers } from '@/lib/telegram';
+import { calculateNextDeliveryFromCurrent } from '@/lib/stripe/subscription-utils';
 import Stripe from 'stripe';
 
 // Désactiver le body parsing de Next.js pour les webhooks
 export const runtime = 'nodejs';
+
+// Mapper fréquence Stripe → next_delivery_date
+function calculateNextDeliveryDate(frequency: 'weekly' | 'biweekly' | 'monthly'): string {
+  const now = new Date();
+  let nextDate = new Date(now);
+
+  // Trouver le prochain lundi ou mardi
+  const dayOfWeek = now.getDay();
+  const daysUntilMonday = dayOfWeek === 0 ? 1 : (8 - dayOfWeek) % 7 || 7;
+  nextDate.setDate(now.getDate() + daysUntilMonday);
+
+  // Si moins de 3 jours, décaler à la semaine suivante
+  const diffDays = Math.ceil((nextDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 3) {
+    nextDate.setDate(nextDate.getDate() + 7);
+  }
+
+  return nextDate.toISOString().split('T')[0];
+}
+
+// calculateNextDeliveryFromCurrent est importé depuis @/lib/stripe/subscription-utils
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -37,10 +59,52 @@ export async function POST(request: NextRequest) {
 
   // Traitement des événements
   try {
+    console.log(`=== WEBHOOK STRIPE REÇU: ${event.type} ===`);
+
     switch (event.type) {
+      // === CHECKOUT COMPLÉTÉ ===
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutCompleted(session);
+        console.log(`Checkout completed - mode: ${session.mode}, email: ${session.customer_email}`);
+        console.log(`Metadata:`, JSON.stringify(session.metadata));
+        if (session.mode === 'subscription') {
+          console.log('>>> Traitement abonnement...');
+          await handleSubscriptionCheckoutCompleted(session);
+          console.log('>>> Abonnement traité avec succès');
+        } else {
+          await handleCheckoutCompleted(session);
+        }
+        break;
+      }
+
+      // === FACTURE PAYÉE (renouvellement abonnement) ===
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object as Stripe.Invoice;
+        // Ne traiter que les factures de renouvellement (pas la première)
+        if (invoice.billing_reason === 'subscription_cycle') {
+          await handleInvoicePaymentSucceeded(invoice);
+        }
+        break;
+      }
+
+      // === ÉCHEC DE PAIEMENT ===
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object as Stripe.Invoice;
+        await handleInvoicePaymentFailed(invoice);
+        break;
+      }
+
+      // === ABONNEMENT MIS À JOUR ===
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        await handleSubscriptionUpdated(subscription);
+        break;
+      }
+
+      // === ABONNEMENT SUPPRIMÉ ===
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object as Stripe.Subscription;
+        await handleSubscriptionDeleted(subscription);
         break;
       }
 
@@ -240,4 +304,451 @@ function formatAddress(address: Stripe.Address | null | undefined): string {
     address.country,
   ].filter(Boolean);
   return parts.join(', ');
+}
+
+// ==========================================
+// HANDLERS POUR ABONNEMENTS STRIPE
+// ==========================================
+
+// Handler: checkout.session.completed en mode subscription
+async function handleSubscriptionCheckoutCompleted(session: Stripe.Checkout.Session) {
+  console.log('=== handleSubscriptionCheckoutCompleted START ===');
+  const supabase = await createClient();
+
+  const metadata = session.metadata || {};
+  console.log('Raw metadata:', metadata);
+  const subscriptionFrequency = metadata.subscriptionFrequency as 'weekly' | 'biweekly' | 'monthly';
+  const items = metadata.items ? JSON.parse(metadata.items) : [];
+  const companyId = metadata.companyId;
+  const deliveryAddress = metadata.deliveryAddress || '';
+  // customer_email peut être null si le client existe déjà - utiliser customer_details comme fallback
+  const customerEmail = session.customer_email || session.customer_details?.email;
+  const stripeCustomerId = session.customer as string;
+  const stripeSubscriptionId = session.subscription as string;
+
+  console.log('Parsed data:', {
+    subscriptionFrequency,
+    itemsCount: items.length,
+    companyId,
+    customerEmail,
+    stripeCustomerId,
+    stripeSubscriptionId,
+  });
+
+  // Récupérer les détails de l'abonnement Stripe
+  const stripeSubscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+  const stripePriceId = stripeSubscription.items.data[0]?.price.id || '';
+
+  // Calculer la date de prochaine livraison
+  const nextDeliveryDate = calculateNextDeliveryDate(subscriptionFrequency);
+
+  // Créer ou mettre à jour la company avec stripe_customer_id
+  let targetCompanyId = companyId;
+
+  if (!targetCompanyId && customerEmail) {
+    // Chercher une company existante par email
+    const { data: existingCompany } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('email', customerEmail.toLowerCase().trim())
+      .single();
+
+    if (existingCompany) {
+      targetCompanyId = (existingCompany as { id: string }).id;
+      // Mettre à jour le stripe_customer_id
+      await supabase
+        .from('companies')
+        .update({ stripe_customer_id: stripeCustomerId } as never)
+        .eq('id', targetCompanyId);
+    } else {
+      // Créer une nouvelle company
+      const { data: newCompany } = await supabase
+        .from('companies')
+        .insert({
+          name: 'Client abonné',
+          email: customerEmail.toLowerCase().trim(),
+          address: deliveryAddress,
+          stripe_customer_id: stripeCustomerId,
+        } as never)
+        .select('id')
+        .single();
+
+      if (newCompany) {
+        targetCompanyId = (newCompany as { id: string }).id;
+      }
+    }
+  }
+
+  if (!targetCompanyId) {
+    console.error('Impossible de créer/trouver la company pour l\'abonnement');
+    return;
+  }
+
+  console.log('Company ID trouvé/créé:', targetCompanyId);
+
+  // Désactiver les anciens abonnements de cette company
+  await supabase
+    .from('subscriptions')
+    .update({ is_active: false } as never)
+    .eq('company_id', targetCompanyId);
+
+  console.log('Anciens abonnements désactivés');
+
+  // Créer l'abonnement en base de données
+  const subscriptionData = {
+    company_id: targetCompanyId,
+    frequency: subscriptionFrequency,
+    default_order_data: items,
+    next_delivery_date: nextDeliveryDate,
+    is_active: true,
+    stripe_subscription_id: stripeSubscriptionId,
+    stripe_price_id: stripePriceId,
+    stripe_status: stripeSubscription.status,
+    current_period_end: stripeSubscription.items?.data[0]?.current_period_end
+      ? new Date(stripeSubscription.items.data[0].current_period_end * 1000).toISOString()
+      : null,
+    cancel_at_period_end: stripeSubscription.cancel_at_period_end,
+  };
+
+  console.log('Données abonnement à insérer:', JSON.stringify(subscriptionData));
+
+  const { data: subscription, error: subError } = await supabase
+    .from('subscriptions')
+    .insert(subscriptionData as never)
+    .select()
+    .single();
+
+  if (subError) {
+    console.error('Erreur création abonnement:', subError);
+    console.error('Détails erreur:', JSON.stringify(subError));
+    return;
+  }
+
+  console.log('Abonnement créé avec succès:', subscription);
+
+  const subscriptionId = subscription ? (subscription as { id: string }).id : 'unknown';
+  console.log(`Abonnement créé: ${subscriptionId} pour ${customerEmail}`);
+
+  // Créer la première commande
+  const total = stripeSubscription.items.data[0]?.price.unit_amount
+    ? stripeSubscription.items.data[0].price.unit_amount / 100
+    : 0;
+
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .insert({
+      company_id: targetCompanyId,
+      status: 'pending',
+      subtotal: total,
+      delivery_fee: 0,
+      total,
+      is_subscription: true,
+      subscription_frequency: subscriptionFrequency,
+      subscription_id: subscriptionId,
+      delivery_date: nextDeliveryDate,
+      delivery_address: deliveryAddress,
+      customer_email: customerEmail,
+      notes: `Premier abonnement ${subscriptionFrequency} - Stripe: ${stripeSubscriptionId}`,
+    } as never)
+    .select()
+    .single();
+
+  if (orderError) {
+    console.error('Erreur création commande initiale:', orderError);
+  }
+
+  const orderId = order ? (order as { id: string }).id : 'unknown';
+
+  // Notifications
+  if (customerEmail) {
+    await sendOrderConfirmationEmail({
+      orderId,
+      customerEmail,
+      total,
+      items: items.map((item: { productId: string; quantity: number }) => ({
+        name: item.productId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+        quantity: item.quantity,
+        price: Math.round(total / items.length),
+      })),
+      deliveryAddress,
+      deliveryDate: nextDeliveryDate,
+    });
+  }
+
+  await sendNewOrderNotificationEmail({
+    orderId,
+    customerEmail: customerEmail || '',
+    total,
+    items: items.map((item: { productId: string; quantity: number }) => ({
+      name: item.productId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+      quantity: item.quantity,
+      price: Math.round(total / items.length),
+    })),
+    deliveryAddress,
+    deliveryDate: nextDeliveryDate,
+  });
+
+  // Notification Telegram
+  await sendTelegramNotification(supabase, {
+    orderId,
+    customerEmail: customerEmail || '',
+    total,
+    deliveryDate: nextDeliveryDate,
+    deliveryAddress,
+    items,
+    isSubscription: true,
+  });
+}
+
+// Handler: invoice.payment_succeeded (renouvellement)
+async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
+  const supabase = await createClient();
+
+  // Dans Stripe API v2023+, subscription est dans parent.subscription_details
+  const subscriptionDetails = invoice.parent?.subscription_details;
+  const stripeSubscriptionId = typeof subscriptionDetails?.subscription === 'string'
+    ? subscriptionDetails.subscription
+    : subscriptionDetails?.subscription?.id;
+
+  if (!stripeSubscriptionId) {
+    console.log('Invoice sans subscription, ignorée:', invoice.id);
+    return;
+  }
+
+  const stripeInvoiceId = invoice.id;
+  const customerEmail = invoice.customer_email;
+
+  // Vérifier l'idempotence - éviter les doublons
+  const { data: existingOrder } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('stripe_invoice_id', stripeInvoiceId)
+    .single();
+
+  if (existingOrder) {
+    console.log(`Commande déjà créée pour la facture ${stripeInvoiceId}`);
+    return;
+  }
+
+  // Trouver l'abonnement en base
+  const { data: subscription, error: subError } = await supabase
+    .from('subscriptions')
+    .select('*')
+    .eq('stripe_subscription_id', stripeSubscriptionId)
+    .eq('is_active', true)
+    .single();
+
+  if (subError || !subscription) {
+    console.error('Abonnement non trouvé pour:', stripeSubscriptionId);
+    return;
+  }
+
+  const sub = subscription as {
+    id: string;
+    company_id: string;
+    frequency: 'weekly' | 'biweekly' | 'monthly';
+    default_order_data: unknown;
+    next_delivery_date: string;
+  };
+
+  // Récupérer l'adresse de livraison de la company
+  const { data: company } = await supabase
+    .from('companies')
+    .select('address, email')
+    .eq('id', sub.company_id)
+    .single();
+
+  const companyData = company as { address: string; email: string } | null;
+  const deliveryAddress = companyData?.address || '';
+  const total = invoice.amount_paid / 100;
+  const items = sub.default_order_data as Array<{ productId: string; quantity: number }>;
+
+  // Créer la commande automatique
+  const { data: order, error: orderError } = await supabase
+    .from('orders')
+    .insert({
+      company_id: sub.company_id,
+      status: 'pending',
+      subtotal: total,
+      delivery_fee: 0,
+      total,
+      is_subscription: true,
+      subscription_frequency: sub.frequency,
+      subscription_id: sub.id,
+      stripe_invoice_id: stripeInvoiceId,
+      delivery_date: sub.next_delivery_date,
+      delivery_address: deliveryAddress,
+      customer_email: customerEmail,
+      notes: `Renouvellement automatique - ${sub.frequency}`,
+    } as never)
+    .select()
+    .single();
+
+  if (orderError) {
+    console.error('Erreur création commande renouvellement:', orderError);
+    return;
+  }
+
+  const orderId = order ? (order as { id: string }).id : 'unknown';
+  console.log(`Commande de renouvellement créée: ${orderId}`);
+
+  // Mettre à jour next_delivery_date
+  const newNextDeliveryDate = calculateNextDeliveryFromCurrent(sub.next_delivery_date, sub.frequency);
+  await supabase
+    .from('subscriptions')
+    .update({ next_delivery_date: newNextDeliveryDate } as never)
+    .eq('id', sub.id);
+
+  // Notifications
+  const emailToUse = customerEmail || companyData?.email || '';
+
+  if (emailToUse) {
+    await sendOrderConfirmationEmail({
+      orderId,
+      customerEmail: emailToUse,
+      total,
+      items: items.map((item) => ({
+        name: item.productId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+        quantity: item.quantity,
+        price: Math.round(total / items.length),
+      })),
+      deliveryAddress,
+      deliveryDate: sub.next_delivery_date,
+    });
+  }
+
+  await sendNewOrderNotificationEmail({
+    orderId,
+    customerEmail: emailToUse,
+    total,
+    items: items.map((item) => ({
+      name: item.productId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+      quantity: item.quantity,
+      price: Math.round(total / items.length),
+    })),
+    deliveryAddress,
+    deliveryDate: sub.next_delivery_date,
+  });
+
+  // Notification Telegram
+  await sendTelegramNotification(supabase, {
+    orderId,
+    customerEmail: emailToUse,
+    total,
+    deliveryDate: sub.next_delivery_date,
+    deliveryAddress,
+    items,
+    isSubscription: true,
+  });
+}
+
+// Handler: invoice.payment_failed
+async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+  const customerEmail = invoice.customer_email;
+
+  if (customerEmail) {
+    await sendPaymentFailedEmail({
+      customerEmail,
+      invoiceId: invoice.id,
+      amount: invoice.amount_due / 100,
+      nextAttempt: invoice.next_payment_attempt
+        ? new Date(invoice.next_payment_attempt * 1000).toLocaleDateString('fr-FR')
+        : null,
+    });
+  }
+
+  console.log(`Échec de paiement pour: ${customerEmail}, facture: ${invoice.id}`);
+}
+
+// Handler: customer.subscription.updated
+async function handleSubscriptionUpdated(stripeSubscription: Stripe.Subscription) {
+  const supabase = await createClient();
+
+  // Récupérer current_period_end depuis les items (API Stripe v2023+)
+  const periodEnd = stripeSubscription.items?.data[0]?.current_period_end;
+
+  const { error } = await supabase
+    .from('subscriptions')
+    .update({
+      stripe_status: stripeSubscription.status,
+      current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
+      cancel_at_period_end: stripeSubscription.cancel_at_period_end,
+      is_active: stripeSubscription.status === 'active' || stripeSubscription.status === 'trialing',
+    } as never)
+    .eq('stripe_subscription_id', stripeSubscription.id);
+
+  if (error) {
+    console.error('Erreur mise à jour abonnement:', error);
+  } else {
+    console.log(`Abonnement mis à jour: ${stripeSubscription.id}, statut: ${stripeSubscription.status}`);
+  }
+}
+
+// Handler: customer.subscription.deleted
+async function handleSubscriptionDeleted(stripeSubscription: Stripe.Subscription) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from('subscriptions')
+    .update({
+      is_active: false,
+      stripe_status: 'canceled',
+    } as never)
+    .eq('stripe_subscription_id', stripeSubscription.id);
+
+  if (error) {
+    console.error('Erreur suppression abonnement:', error);
+  } else {
+    console.log(`Abonnement annulé: ${stripeSubscription.id}`);
+  }
+}
+
+// Fonction utilitaire pour envoyer les notifications Telegram
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function sendTelegramNotification(supabase: any, data: {
+  orderId: string;
+  customerEmail: string;
+  total: number;
+  deliveryDate: string;
+  deliveryAddress: string;
+  items: Array<{ productId: string; quantity: number }>;
+  isSubscription?: boolean;
+}) {
+  try {
+    const { data: drivers, error: driversError } = await supabase
+      .from('users')
+      .select('telegram_chat_id')
+      .eq('role', 'driver')
+      .eq('is_active', true)
+      .not('telegram_chat_id', 'is', null);
+
+    if (driversError) {
+      console.error('Erreur récupération livreurs:', driversError);
+      return;
+    }
+
+    if (drivers && drivers.length > 0) {
+      const driverChatIds = drivers
+        .map((d: { telegram_chat_id: string }) => d.telegram_chat_id)
+        .filter(Boolean);
+
+      await sendNewOrderNotificationToDrivers(driverChatIds, {
+        orderId: data.orderId,
+        customerEmail: data.customerEmail,
+        customerPhone: '',
+        total: data.total,
+        deliveryDate: data.deliveryDate,
+        deliveryDay: 'monday',
+        deliveryAddress: data.deliveryAddress,
+        items: data.items.map((item) => ({
+          name: item.productId.replace(/-/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+          quantity: item.quantity,
+        })),
+      });
+
+      console.log(`Notification Telegram envoyée à ${driverChatIds.length} livreurs`);
+    }
+  } catch (telegramError) {
+    console.error('Erreur notification Telegram:', telegramError);
+  }
 }
