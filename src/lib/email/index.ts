@@ -181,20 +181,10 @@ export async function sendOrderStatusUpdateEmail(
   customerName?: string
 ) {
   const statusMessages: Record<string, { emoji: string; title: string; message: string }> = {
-    preparing: {
-      emoji: '👨‍🍳',
-      title: 'Commande en préparation',
-      message: 'Notre équipe prépare vos fruits frais avec soin. Vous serez bientôt livré !',
-    },
     delivered: {
       emoji: '✅',
       title: 'Commande livrée',
-      message: 'Votre commande a été livrée. Bon appétit et merci de votre confiance !',
-    },
-    cancelled: {
-      emoji: '❌',
-      title: 'Commande annulée',
-      message: 'Votre commande a été annulée. Si vous avez des questions, contactez-nous.',
+      message: 'Votre commande a été livrée avec succès. Bon appétit et merci de votre confiance !',
     },
   };
 

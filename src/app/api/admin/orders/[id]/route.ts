@@ -51,12 +51,10 @@ export async function PATCH(
       throw updateError;
     }
 
-    // Envoyer un email de notification si le statut a changé
-    // et si on a l'email du client (stocké dans notes ou via Stripe)
-    const emailMatch = order.notes?.match(/Email: ([^\s]+)/);
-    const customerEmail = emailMatch?.[1];
+    // Envoyer un email de notification uniquement à la livraison
+    const customerEmail = order.customer_email;
 
-    if (customerEmail && ['preparing', 'delivered', 'cancelled'].includes(status)) {
+    if (customerEmail && status === 'delivered') {
       await sendOrderStatusUpdateEmail(customerEmail, id, status);
     }
 

@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 interface Order {
   id: string;
   created_at: string;
-  status: 'pending' | 'confirmed' | 'preparing' | 'delivered' | 'cancelled';
+  status: 'pending' | 'confirmed' | 'delivered' | 'cancelled';
   subtotal: number;
   delivery_fee: number;
   total: number;
@@ -34,7 +34,6 @@ interface Driver {
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: 'En attente', color: 'bg-yellow-500/20 text-yellow-500' },
   confirmed: { label: 'Confirmée', color: 'bg-blue-500/20 text-blue-500' },
-  preparing: { label: 'En préparation', color: 'bg-orange-500/20 text-orange-500' },
   delivered: { label: 'Livrée', color: 'bg-green-500/20 text-green-500' },
   cancelled: { label: 'Annulée', color: 'bg-red-500/20 text-red-500' },
 };
@@ -278,7 +277,6 @@ export default function AdminPage() {
     total: orders.length,
     pending: orders.filter(o => o.status === 'pending').length,
     confirmed: orders.filter(o => o.status === 'confirmed').length,
-    preparing: orders.filter(o => o.status === 'preparing').length,
     delivered: orders.filter(o => o.status === 'delivered').length,
     revenue: orders.filter(o => o.status !== 'cancelled').reduce((sum, o) => sum + o.total, 0),
   };
@@ -370,7 +368,7 @@ export default function AdminPage() {
         {activeTab === 'orders' && (
         <>
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
           <div className="bg-background-card rounded-xl p-4 border border-border">
             <div className="text-2xl font-bold text-white">{stats.total}</div>
             <div className="text-sm text-foreground-muted">Total</div>
@@ -384,10 +382,6 @@ export default function AdminPage() {
             <div className="text-sm text-foreground-muted">Confirmées</div>
           </div>
           <div className="bg-background-card rounded-xl p-4 border border-border">
-            <div className="text-2xl font-bold text-orange-500">{stats.preparing}</div>
-            <div className="text-sm text-foreground-muted">En préparation</div>
-          </div>
-          <div className="bg-background-card rounded-xl p-4 border border-border">
             <div className="text-2xl font-bold text-green-500">{stats.delivered}</div>
             <div className="text-sm text-foreground-muted">Livrées</div>
           </div>
@@ -399,7 +393,7 @@ export default function AdminPage() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-2 mb-6">
-          {['all', 'pending', 'confirmed', 'preparing', 'delivered', 'cancelled'].map((status) => (
+          {['all', 'pending', 'confirmed', 'delivered', 'cancelled'].map((status) => (
             <button
               key={status}
               onClick={() => setFilter(status)}
@@ -515,7 +509,6 @@ export default function AdminPage() {
                     >
                       <option value="pending">En attente</option>
                       <option value="confirmed">Confirmée</option>
-                      <option value="preparing">En préparation</option>
                       <option value="delivered">Livrée</option>
                       <option value="cancelled">Annulée</option>
                     </select>
