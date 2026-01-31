@@ -284,11 +284,11 @@ export default function Home() {
 
         <div className="relative max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
           <div className="p-6 rounded-2xl bg-fruit-red/10 border border-fruit-red/20">
-            <div className="text-4xl font-bold text-fruit-red mb-2">150+</div>
+            <div className="text-4xl font-bold text-fruit-red mb-2">12</div>
             <div className="text-foreground-muted">Entreprises clientes</div>
           </div>
           <div className="p-6 rounded-2xl bg-fruit-orange/10 border border-fruit-orange/20">
-            <div className="text-4xl font-bold text-fruit-orange mb-2">2000+</div>
+            <div className="text-4xl font-bold text-fruit-orange mb-2">50+</div>
             <div className="text-foreground-muted">Paniers livrés/mois</div>
           </div>
           <div className="p-6 rounded-2xl bg-fruit-yellow/10 border border-fruit-yellow/20">
