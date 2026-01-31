@@ -78,6 +78,9 @@ export const metadata: Metadata = {
     shortcut: "/favicon.svg",
   },
   manifest: "/manifest.json",
+  verification: {
+    google: "VOTRE_CODE_VERIFICATION_GOOGLE", // Remplacer par le code de Google Search Console
+  },
 };
 
 export default function RootLayout({

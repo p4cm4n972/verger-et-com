@@ -16,6 +16,27 @@ const BASKET_TO_PLAN: Record<string, SubscriptionPlan> = {
   'basket-12kg': 'enterprise',
 };
 
+// Mapper les tailles de panier (pour paniers custom) vers les plans
+// Les IDs correspondent à ceux définis dans BASKET_SIZES (constants.ts)
+const BASKET_SIZE_TO_PLAN: Record<string, SubscriptionPlan> = {
+  'basket-5kg': 'discovery',
+  'basket-8kg': 'team',
+  'basket-12kg': 'enterprise',
+};
+
+// Fonction pour déterminer le plan d'abonnement
+function getSubscriptionPlan(item: { productId: string; isCustom?: boolean; customBasketData?: { basketSizeId: string } }): SubscriptionPlan {
+  // Panier prédéfini
+  if (!item.isCustom && BASKET_TO_PLAN[item.productId]) {
+    return BASKET_TO_PLAN[item.productId];
+  }
+  // Panier personnalisé - utiliser la taille du panier
+  if (item.isCustom && item.customBasketData?.basketSizeId) {
+    return BASKET_SIZE_TO_PLAN[item.customBasketData.basketSizeId] || null;
+  }
+  return null;
+}
+
 export default function CommanderPage() {
   const { items: cart, removeItem, updateQuantity, total: subtotal } = useCart();
 
@@ -95,11 +116,9 @@ export default function CommanderPage() {
           deliveryAddress: fullAddress,
           isSubscription,
           subscriptionFrequency: isSubscription ? 'weekly' : null,
-          // Déterminer le plan d'abonnement basé sur le premier panier
+          // Déterminer le plan d'abonnement basé sur le premier panier (prédéfini ou custom)
           subscriptionPlan: isSubscription
-            ? (cart.find(item => item.type === 'basket')?.productId
-                ? BASKET_TO_PLAN[cart.find(item => item.type === 'basket')!.productId]
-                : null)
+            ? getSubscriptionPlan(cart.find(item => item.type === 'basket') || { productId: '' })
             : null,
         }),
       });

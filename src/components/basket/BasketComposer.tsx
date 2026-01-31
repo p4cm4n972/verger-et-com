@@ -1,14 +1,19 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, pointerWithin, useSensor, useSensors, PointerSensor } from '@dnd-kit/core';
 import type { Fruit, CustomBasketItem, BasketSize } from '@/types';
 import { BASKET_SIZES, FRUITS, CATEGORY_COLORS } from '@/lib/constants';
 import { calculateCustomBasketPrice, getSeasonalFruits, validateBasketWeight, calculateSavings } from '@/lib/pricing';
+import { useCart } from '@/lib/cart/CartContext';
 import { DraggableFruit } from './DraggableFruit';
 import { BasketDropZone } from './BasketDropZone';
 
 export function BasketComposer() {
+  const router = useRouter();
+  const { addItem } = useCart();
+
   // Sensors pour le drag - distance minimum pour différencier clic et drag
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -102,6 +107,38 @@ export function BasketComposer() {
 
   const clearBasket = () => {
     setBasketItems([]);
+  };
+
+  const handleAddToCart = () => {
+    if (!validation.valid || basketItems.length === 0) return;
+
+    // Générer un ID unique pour ce panier composé
+    const customBasketId = `custom-${selectedBasketSize.id}-${Date.now()}`;
+
+    // Créer la description des fruits
+    const fruitsDescription = basketItems
+      .map((item) => `${item.fruit.name} (${item.quantity}kg)`)
+      .join(', ');
+
+    addItem({
+      type: 'basket',
+      productId: customBasketId,
+      name: `Panier Personnalisé ${selectedBasketSize.weight}kg`,
+      description: fruitsDescription,
+      price: calculatedPrice,
+      isCustom: true,
+      customBasketData: {
+        basketSizeId: selectedBasketSize.id,
+        items: basketItems.map((item) => ({
+          fruitId: item.fruit.id,
+          quantity: item.quantity,
+        })),
+      },
+    });
+
+    // Réinitialiser et rediriger
+    clearBasket();
+    router.push('/commander');
   };
 
   return (
@@ -247,6 +284,7 @@ export function BasketComposer() {
                 Vider
               </button>
               <button
+                onClick={handleAddToCart}
                 disabled={!validation.valid || basketItems.length === 0}
                 className="flex-1 py-3 rounded-xl bg-gradient-to-r from-fruit-green to-fruit-green/80 text-background font-semibold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
