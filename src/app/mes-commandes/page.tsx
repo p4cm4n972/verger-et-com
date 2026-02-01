@@ -22,6 +22,7 @@ interface Order {
   delivery_address: string;
   created_at: string;
   order_items: OrderItem[];
+  delivery_proof_url: string | null;
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string; emoji: string }> = {
@@ -41,6 +42,7 @@ export default function MesCommandesPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [photoModal, setPhotoModal] = useState<{ url: string; orderId: string } | null>(null);
 
   // Vérifier si on a une session en cours
   useEffect(() => {
@@ -342,6 +344,15 @@ export default function MesCommandesPage() {
                             <p className="text-sm text-foreground-muted">
                               Livraison le {formatDate(order.delivery_date)}
                             </p>
+                            {/* Photo de preuve de livraison */}
+                            {order.status === 'delivered' && order.delivery_proof_url && (
+                              <button
+                                onClick={() => setPhotoModal({ url: order.delivery_proof_url!, orderId: order.id })}
+                                className="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-fruit-green/20 text-fruit-green rounded-lg text-xs font-medium hover:bg-fruit-green/30 transition-colors"
+                              >
+                                📸 Voir la preuve de livraison
+                              </button>
+                            )}
                           </div>
                           <div className="text-right">
                             <span className="text-2xl font-bold text-fruit-green">
@@ -378,6 +389,42 @@ export default function MesCommandesPage() {
           )}
         </div>
       </section>
+
+      {/* Modale photo de preuve de livraison */}
+      {photoModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setPhotoModal(null)}
+        >
+          <div
+            className="bg-background-card border border-border rounded-2xl p-4 max-w-2xl mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">
+                📸 Preuve de livraison
+              </h3>
+              <button
+                onClick={() => setPhotoModal(null)}
+                className="w-8 h-8 rounded-full bg-background flex items-center justify-center text-foreground-muted hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="relative rounded-xl overflow-hidden bg-black">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoModal.url}
+                alt="Preuve de livraison"
+                className="max-w-full max-h-[70vh] mx-auto object-contain"
+              />
+            </div>
+            <p className="mt-4 text-xs text-foreground-muted text-center">
+              Commande #{photoModal.orderId.slice(0, 8)} - Photo prise par le livreur
+            </p>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>
