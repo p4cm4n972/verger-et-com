@@ -1,8 +1,11 @@
 'use client';
 
-// Composants SVG de fruits colorés pour décorer les pages
+import { memo } from 'react';
 
-export function AppleIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
+// Composants SVG de fruits colorés pour décorer les pages
+// Memoized pour éviter les re-renders inutiles
+
+export const AppleIcon = memo(function AppleIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none" className={className}>
       <ellipse cx="50" cy="60" rx="35" ry="32" fill="#E63946" />
@@ -18,9 +21,9 @@ export function AppleIcon({ className = '', size = 48 }: { className?: string; s
       </defs>
     </svg>
   );
-}
+});
 
-export function OrangeIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
+export const OrangeIcon = memo(function OrangeIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none" className={className}>
       <circle cx="50" cy="55" r="38" fill="#FF6B35" />
@@ -35,9 +38,9 @@ export function OrangeIcon({ className = '', size = 48 }: { className?: string; 
       </defs>
     </svg>
   );
-}
+});
 
-export function BananaIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
+export const BananaIcon = memo(function BananaIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none" className={className}>
       <path
@@ -57,9 +60,9 @@ export function BananaIcon({ className = '', size = 48 }: { className?: string; 
       </defs>
     </svg>
   );
-}
+});
 
-export function GrapesIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
+export const GrapesIcon = memo(function GrapesIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none" className={className}>
       <circle cx="40" cy="40" r="12" fill="#4ECB71" />
@@ -74,9 +77,9 @@ export function GrapesIcon({ className = '', size = 48 }: { className?: string; 
       <ellipse cx="62" cy="12" rx="8" ry="5" fill="#4ECB71" />
     </svg>
   );
-}
+});
 
-export function WatermelonIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
+export const WatermelonIcon = memo(function WatermelonIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none" className={className}>
       <path d="M10 80 Q50 10, 90 80 Z" fill="#4ECB71" />
@@ -88,9 +91,9 @@ export function WatermelonIcon({ className = '', size = 48 }: { className?: stri
       <ellipse cx="58" cy="70" rx="3" ry="5" fill="#1a1a1a" />
     </svg>
   );
-}
+});
 
-export function StrawberryIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
+export const StrawberryIcon = memo(function StrawberryIcon({ className = '', size = 48 }: { className?: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" fill="none" className={className}>
       <path
@@ -112,10 +115,10 @@ export function StrawberryIcon({ className = '', size = 48 }: { className?: stri
       <path d="M65 18 L55 5" stroke="#4ECB71" strokeWidth="3" />
     </svg>
   );
-}
+});
 
 // Composant décoratif avec plusieurs fruits flottants
-export function FloatingFruits({ className = '' }: { className?: string }) {
+export const FloatingFruits = memo(function FloatingFruits({ className = '' }: { className?: string }) {
   return (
     <div className={`absolute inset-0 overflow-hidden pointer-events-none ${className}`}>
       <div className="absolute top-10 left-10 animate-bounce" style={{ animationDuration: '3s' }}>
@@ -138,10 +141,10 @@ export function FloatingFruits({ className = '' }: { className?: string }) {
       </div>
     </div>
   );
-}
+});
 
 // Barre de fruits pour décorer les sections
-export function FruitStrip({ className = '' }: { className?: string }) {
+export const FruitStrip = memo(function FruitStrip({ className = '' }: { className?: string }) {
   return (
     <div className={`flex justify-center items-center gap-4 py-4 ${className}`}>
       <AppleIcon size={32} />
@@ -152,4 +155,4 @@ export function FruitStrip({ className = '' }: { className?: string }) {
       <WatermelonIcon size={32} />
     </div>
   );
-}
+});

@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useCallback } from 'react';
 import { useCart } from '@/lib/cart/CartContext';
 import { useRouter } from 'next/navigation';
 
@@ -16,11 +17,11 @@ interface BasketCardProps {
   isPopular?: boolean;
 }
 
-export function BasketCard({ basket, colorClass, isPopular }: BasketCardProps) {
+export const BasketCard = memo(function BasketCard({ basket, colorClass, isPopular }: BasketCardProps) {
   const { addItem } = useCart();
   const router = useRouter();
 
-  const handleAddToCart = () => {
+  const handleAddToCart = useCallback(() => {
     addItem({
       type: 'basket',
       productId: basket.id,
@@ -29,7 +30,7 @@ export function BasketCard({ basket, colorClass, isPopular }: BasketCardProps) {
       price: basket.price,
     });
     router.push('/commander');
-  };
+  }, [addItem, basket, router]);
 
   return (
     <div
@@ -84,4 +85,4 @@ export function BasketCard({ basket, colorClass, isPopular }: BasketCardProps) {
       </button>
     </div>
   );
-}
+});

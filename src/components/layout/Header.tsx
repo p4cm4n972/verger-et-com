@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
 import { useCart } from '@/lib/cart/CartContext';
+import { usePrefetchRoutes } from '@/hooks/usePrefetchRoutes';
 
 const navLinks = [
   { href: '/', label: 'Accueil' },
@@ -18,10 +19,16 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { itemCount } = useCart();
 
+  // Préfetcher les routes critiques au chargement
+  usePrefetchRoutes();
+
+  const toggleMenu = useCallback(() => setIsMenuOpen(prev => !prev), []);
+  const closeMenu = useCallback(() => setIsMenuOpen(false), []);
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <Link href="/" onClick={() => setIsMenuOpen(false)}>
+        <Link href="/" onClick={closeMenu}>
           <Logo size="sm" />
         </Link>
 
@@ -55,7 +62,7 @@ export function Header() {
 
           {/* Bouton hamburger (mobile) */}
           <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            onClick={toggleMenu}
             className="md:hidden w-10 h-10 flex flex-col items-center justify-center gap-1.5"
             aria-label="Menu"
           >
@@ -89,7 +96,7 @@ export function Header() {
             <Link
               key={link.href}
               href={link.href}
-              onClick={() => setIsMenuOpen(false)}
+              onClick={closeMenu}
               className="text-2xl text-white hover:text-fruit-green transition-colors"
             >
               {link.label}
@@ -97,7 +104,7 @@ export function Header() {
           ))}
           <Link
             href="/commander"
-            onClick={() => setIsMenuOpen(false)}
+            onClick={closeMenu}
             className="mt-4 px-8 py-3 bg-fruit-green text-background font-semibold rounded-full text-lg hover:bg-fruit-green/90 transition-colors flex items-center gap-2 relative"
           >
             <span>🧺</span>

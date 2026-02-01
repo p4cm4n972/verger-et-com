@@ -1,6 +1,25 @@
+'use client';
+
+import dynamic from 'next/dynamic';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { BasketComposer } from '@/components/basket';
+
+// Lazy load du composant lourd (drag & drop)
+const BasketComposer = dynamic(
+  () => import('@/components/basket').then(mod => ({ default: mod.BasketComposer })),
+  {
+    ssr: false, // Drag & drop ne fonctionne pas côté serveur
+    loading: () => (
+      <div className="animate-pulse">
+        <div className="h-12 bg-background-card rounded-xl mb-6" />
+        <div className="grid md:grid-cols-2 gap-6">
+          <div className="h-96 bg-background-card rounded-2xl" />
+          <div className="h-96 bg-background-card rounded-2xl" />
+        </div>
+      </div>
+    ),
+  }
+);
 
 export default function ComposerPage() {
   return (
