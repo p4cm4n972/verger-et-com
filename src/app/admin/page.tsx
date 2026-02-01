@@ -55,6 +55,7 @@ export default function AdminPage() {
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [snackbar, setSnackbar] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{ id: string; name: string } | null>(null);
   const router = useRouter();
 
   // Fonction pour afficher un snackbar
@@ -329,15 +330,30 @@ export default function AdminPage() {
     }
   };
 
-  // Supprimer un livreur
-  const deleteDriver = async (driverId: string, driverName: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer le livreur ${driverName} ? Cette action est irréversible.`)) {
+  // Calculer le solde dû à un livreur
+  const getDriverBalance = (driverId: string) => {
+    return orders
+      .filter(o => o.assigned_driver_id === driverId && o.status === 'delivered')
+      .reduce((sum, o) => sum + (o.total - 10), 0);
+  };
+
+  // Demander confirmation de suppression
+  const requestDeleteDriver = (driverId: string, driverName: string) => {
+    const balance = getDriverBalance(driverId);
+    if (balance > 0) {
+      showSnackbar(`Impossible de supprimer : ${driverName} a un solde dû de ${balance}€`, 'error');
       return;
     }
+    setDeleteModal({ id: driverId, name: driverName });
+  };
+
+  // Confirmer la suppression
+  const confirmDeleteDriver = async () => {
+    if (!deleteModal) return;
 
     try {
       const token = sessionStorage.getItem('admin_token');
-      const response = await fetch(`/api/admin/drivers?id=${driverId}`, {
+      const response = await fetch(`/api/admin/drivers?id=${deleteModal.id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -348,11 +364,12 @@ export default function AdminPage() {
         throw new Error('Erreur de suppression');
       }
 
-      // Retirer de l'état local
-      setDrivers(drivers.filter(driver => driver.id !== driverId));
+      setDrivers(drivers.filter(driver => driver.id !== deleteModal.id));
       showSnackbar('Livreur supprimé', 'success');
     } catch (err) {
       showSnackbar(err instanceof Error ? err.message : 'Erreur de suppression', 'error');
+    } finally {
+      setDeleteModal(null);
     }
   };
 
@@ -955,7 +972,7 @@ export default function AdminPage() {
                           {driver.is_active ? '⏸ Suspendre' : '▶ Réactiver'}
                         </button>
                         <button
-                          onClick={() => deleteDriver(driver.id, driver.name)}
+                          onClick={() => requestDeleteDriver(driver.id, driver.name)}
                           className="px-3 py-1 rounded-lg text-xs font-medium bg-red-500/20 text-red-500 hover:bg-red-500/30 transition-colors"
                         >
                           🗑 Supprimer
@@ -1000,6 +1017,38 @@ export default function AdminPage() {
           </div>
         )}
       </main>
+
+      {/* Modale de confirmation de suppression */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-background-card border border-border rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">🗑</span>
+              </div>
+              <h3 className="text-xl font-bold text-white mb-2">Supprimer le livreur ?</h3>
+              <p className="text-foreground-muted">
+                Êtes-vous sûr de vouloir supprimer <span className="text-white font-medium">{deleteModal.name}</span> ?
+                Cette action est irréversible.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="flex-1 px-4 py-3 rounded-xl border border-border text-foreground-muted hover:text-white hover:border-white/30 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmDeleteDriver}
+                className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
+              >
+                Supprimer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Snackbar */}
       {snackbar && (
