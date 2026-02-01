@@ -49,7 +49,7 @@ export default function CommanderPage() {
   const [city, setCity] = useState('');
   const [deliveryOptions, setDeliveryOptions] = useState<DeliveryOption[]>([]);
   const [selectedDeliveryDay, setSelectedDeliveryDay] = useState<DeliveryDay | null>(null);
-  const [isSubscription, setIsSubscription] = useState(false);
+  const [isSubscription, setIsSubscription] = useState(true); // Activé par défaut
 
   // Calculer les options de livraison au chargement
   useEffect(() => {
@@ -63,6 +63,17 @@ export default function CommanderPage() {
 
   const deliveryFee = 0; // Livraison offerte
   const total = subtotal + deliveryFee;
+
+  // Détecter si le panier contient un panier personnalisé (custom)
+  // Les paniers custom ne peuvent pas être en abonnement
+  const hasCustomBasket = cart.some(item => item.type === 'basket' && item.isCustom);
+
+  // Désactiver l'abonnement si le panier contient un panier custom
+  useEffect(() => {
+    if (hasCustomBasket && isSubscription) {
+      setIsSubscription(false);
+    }
+  }, [hasCustomBasket, isSubscription]);
 
   const handleCheckout = async () => {
     if (!email) {
@@ -354,43 +365,62 @@ export default function CommanderPage() {
                 </div>
               </div>
 
-              {/* Option abonnement */}
-              <div className="bg-gradient-to-r from-fruit-green/10 to-fruit-orange/10 rounded-2xl p-6 border border-fruit-green/30 mt-6">
-                <div className="flex items-center justify-between">
+              {/* Option abonnement - uniquement pour les paniers prédéfinis */}
+              {!hasCustomBasket && (
+                <div className="bg-gradient-to-r from-fruit-green/10 to-fruit-orange/10 rounded-2xl p-6 border border-fruit-green/30 mt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">🔄</span>
+                      <div>
+                        <h2 className="text-lg font-bold text-white">Abonnement hebdomadaire</h2>
+                        <p className="text-sm text-foreground-muted">Recevez automatiquement chaque semaine</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsSubscription(!isSubscription)}
+                      className={`w-14 h-8 rounded-full transition-all ${
+                        isSubscription ? 'bg-fruit-green' : 'bg-border'
+                      }`}
+                    >
+                      <div
+                        className={`w-6 h-6 bg-white rounded-full transition-transform ${
+                          isSubscription ? 'translate-x-7' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {isSubscription && (
+                    <div className="mt-4 p-3 bg-fruit-green/10 rounded-xl">
+                      <p className="text-sm text-fruit-green flex items-center gap-2">
+                        <span>✓</span>
+                        Livraison automatique chaque semaine
+                      </p>
+                      <p className="text-xs text-foreground-muted mt-2">
+                        Annulez à tout moment depuis votre espace client
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Message explicatif pour les paniers personnalisés */}
+              {hasCustomBasket && (
+                <div className="bg-background-card rounded-2xl p-6 border border-border mt-6">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">🔄</span>
+                    <span className="text-2xl">🎨</span>
                     <div>
-                      <h2 className="text-lg font-bold text-white">Abonnement hebdomadaire</h2>
-                      <p className="text-sm text-foreground-muted">Recevez automatiquement chaque semaine</p>
+                      <h2 className="text-lg font-bold text-white">Panier personnalisé</h2>
+                      <p className="text-sm text-foreground-muted">
+                        L&apos;abonnement n&apos;est pas disponible pour les paniers composés.
+                        <br />
+                        <span className="text-xs">Pour un abonnement, choisissez un panier prédéfini.</span>
+                      </p>
                     </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsSubscription(!isSubscription)}
-                    className={`w-14 h-8 rounded-full transition-all ${
-                      isSubscription ? 'bg-fruit-green' : 'bg-border'
-                    }`}
-                  >
-                    <div
-                      className={`w-6 h-6 bg-white rounded-full transition-transform ${
-                        isSubscription ? 'translate-x-7' : 'translate-x-1'
-                      }`}
-                    />
-                  </button>
                 </div>
-
-                {isSubscription && (
-                  <div className="mt-4 p-3 bg-fruit-green/10 rounded-xl">
-                    <p className="text-sm text-fruit-green flex items-center gap-2">
-                      <span>✓</span>
-                      Livraison automatique chaque semaine
-                    </p>
-                    <p className="text-xs text-foreground-muted mt-2">
-                      Annulez à tout moment depuis votre espace client
-                    </p>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
 
             {/* Récapitulatif */}
