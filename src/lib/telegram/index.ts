@@ -70,12 +70,22 @@ function formatDeliveryDay(day: 'monday' | 'tuesday'): string {
 }
 
 /**
+ * Résultat de l'envoi de notification avec message_id
+ */
+export interface NotificationResult {
+  chatId: string;
+  messageId: number | null;
+  success: boolean;
+}
+
+/**
  * Envoie une notification de nouvelle commande aux livreurs
+ * Retourne les message_id pour pouvoir les éditer plus tard
  */
 export async function sendNewOrderNotificationToDrivers(
   driverChatIds: string[],
   orderData: OrderNotificationData
-): Promise<void> {
+): Promise<NotificationResult[]> {
   const itemsList = orderData.items
     .map(item => `  • ${item.name} x${item.quantity}`)
     .join('\n');
@@ -107,14 +117,74 @@ ${itemsList}
     ],
   ];
 
+  const results: NotificationResult[] = [];
+
   // Envoyer à tous les livreurs disponibles
   for (const chatId of driverChatIds) {
-    await sendTelegramMessage({
+    const response = await sendTelegramMessage({
       chat_id: chatId,
       text: messageText,
       parse_mode: 'HTML',
       reply_markup: { inline_keyboard: keyboard },
     });
+
+    results.push({
+      chatId,
+      messageId: response.ok && response.result ? response.result.message_id : null,
+      success: response.ok,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Édite un message Telegram pour indiquer que la commande a été prise
+ */
+export async function editMessageForOrderTaken(
+  chatId: string,
+  messageId: number,
+  orderId: string,
+  driverName: string
+): Promise<boolean> {
+  if (!TELEGRAM_BOT_TOKEN) {
+    console.warn('TELEGRAM_BOT_TOKEN non configuré');
+    return false;
+  }
+
+  const newText = `
+⛔ <b>COMMANDE DÉJÀ PRISE</b>
+
+📦 Commande #${orderId.slice(0, 8)}
+👤 Prise par: <b>${driverName}</b>
+
+Cette commande n'est plus disponible.
+`.trim();
+
+  try {
+    const response = await fetch(`${TELEGRAM_API_URL}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text: newText,
+        parse_mode: 'HTML',
+        // Pas de reply_markup = supprime les boutons
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!result.ok) {
+      console.error('Erreur édition message Telegram:', result);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Erreur édition message Telegram:', error);
+    return false;
   }
 }
 

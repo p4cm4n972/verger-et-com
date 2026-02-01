@@ -248,11 +248,11 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     console.log('=== NOTIFICATION TELEGRAM ===');
     console.log('deliveryDay:', deliveryDay);
 
-    // Récupérer tous les livreurs actifs avec un chat ID Telegram
+    // Récupérer tous les livreurs actifs avec leur ID et chat ID Telegram
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: drivers, error: driversError } = await (supabase as any)
       .from('users')
-      .select('telegram_chat_id')
+      .select('id, telegram_chat_id')
       .eq('role', 'driver')
       .eq('is_active', true)
       .not('telegram_chat_id', 'is', null);
@@ -269,7 +269,8 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
       console.log('Chat IDs Telegram:', driverChatIds);
 
-      await sendNewOrderNotificationToDrivers(driverChatIds, {
+      // Envoyer les notifications et récupérer les message_id
+      const results = await sendNewOrderNotificationToDrivers(driverChatIds, {
         orderId,
         customerEmail: session.customer_email || '',
         customerPhone: customerPhone || '',
@@ -283,7 +284,28 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
         })),
       });
 
-      console.log(`Notification Telegram envoyée à ${driverChatIds.length} livreurs`);
+      // Stocker les notifications avec message_id en base
+      for (const result of results) {
+        if (result.success && result.messageId) {
+          // Trouver le driver_id correspondant au chat_id
+          const driver = drivers.find(
+            (d: { telegram_chat_id: string }) => d.telegram_chat_id === result.chatId
+          );
+
+          if (driver) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase as any).from('telegram_notifications').insert({
+              order_id: orderId,
+              driver_id: driver.id,
+              message_id: result.messageId.toString(),
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      console.log(`Notification Telegram envoyée à ${driverChatIds.length} livreurs (avec message_id stockés)`);
     } else {
       console.log('Aucun livreur avec telegram_chat_id trouvé');
     }
@@ -715,9 +737,10 @@ async function sendTelegramNotification(supabase: any, data: {
   isSubscription?: boolean;
 }) {
   try {
+    // Récupérer tous les livreurs actifs avec leur ID et chat_id
     const { data: drivers, error: driversError } = await supabase
       .from('users')
-      .select('telegram_chat_id')
+      .select('id, telegram_chat_id')
       .eq('role', 'driver')
       .eq('is_active', true)
       .not('telegram_chat_id', 'is', null);
@@ -732,7 +755,8 @@ async function sendTelegramNotification(supabase: any, data: {
         .map((d: { telegram_chat_id: string }) => d.telegram_chat_id)
         .filter(Boolean);
 
-      await sendNewOrderNotificationToDrivers(driverChatIds, {
+      // Envoyer les notifications et récupérer les message_id
+      const results = await sendNewOrderNotificationToDrivers(driverChatIds, {
         orderId: data.orderId,
         customerEmail: data.customerEmail,
         customerPhone: '',
@@ -746,7 +770,27 @@ async function sendTelegramNotification(supabase: any, data: {
         })),
       });
 
-      console.log(`Notification Telegram envoyée à ${driverChatIds.length} livreurs`);
+      // Stocker les notifications avec message_id en base
+      for (const result of results) {
+        if (result.success && result.messageId) {
+          // Trouver le driver_id correspondant au chat_id
+          const driver = drivers.find(
+            (d: { telegram_chat_id: string }) => d.telegram_chat_id === result.chatId
+          );
+
+          if (driver) {
+            await supabase.from('telegram_notifications').insert({
+              order_id: data.orderId,
+              driver_id: driver.id,
+              message_id: result.messageId.toString(),
+              status: 'sent',
+              sent_at: new Date().toISOString(),
+            });
+          }
+        }
+      }
+
+      console.log(`Notification Telegram envoyée à ${driverChatIds.length} livreurs (avec message_id stockés)`);
     }
   } catch (telegramError) {
     console.error('Erreur notification Telegram:', telegramError);

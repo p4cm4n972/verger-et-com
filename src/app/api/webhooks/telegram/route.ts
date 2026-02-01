@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { sendOrderAcceptedConfirmation, sendTelegramMessage } from '@/lib/telegram';
+import { sendOrderAcceptedConfirmation, sendTelegramMessage, editMessageForOrderTaken } from '@/lib/telegram';
 import { sendOrderStatusUpdateEmail } from '@/lib/email';
 import {
   getSession,
@@ -528,18 +528,64 @@ async function handleAcceptOrder(
     })
     .eq('id', orderId);
 
+  // Mettre à jour le statut de la notification du livreur qui accepte
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase as any)
     .from('telegram_notifications')
-    .insert({
-      order_id: orderId,
-      driver_id: driver.id,
+    .update({
       status: 'accepted',
       responded_at: new Date().toISOString(),
-    });
+    })
+    .eq('order_id', orderId)
+    .eq('driver_id', driver.id);
 
   await answerCallbackQuery(callbackId, '✅ Commande acceptée !');
   await sendOrderAcceptedConfirmation(chatId, orderId, order.delivery_date);
+
+  // === NOTIFIER LES AUTRES LIVREURS ===
+  // Récupérer toutes les notifications envoyées pour cette commande (sauf celle du livreur qui accepte)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: otherNotifications } = await (supabase as any)
+    .from('telegram_notifications')
+    .select('id, driver_id, message_id')
+    .eq('order_id', orderId)
+    .eq('status', 'sent')
+    .neq('driver_id', driver.id);
+
+  if (otherNotifications && otherNotifications.length > 0) {
+    console.log(`Édition des messages pour ${otherNotifications.length} autres livreurs`);
+
+    for (const notif of otherNotifications) {
+      if (notif.message_id) {
+        // Récupérer le chat_id du livreur
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: otherDriver } = await (supabase as any)
+          .from('users')
+          .select('telegram_chat_id')
+          .eq('id', notif.driver_id)
+          .single();
+
+        if (otherDriver?.telegram_chat_id) {
+          // Éditer le message pour indiquer que la commande a été prise
+          const edited = await editMessageForOrderTaken(
+            otherDriver.telegram_chat_id,
+            parseInt(notif.message_id),
+            orderId,
+            driver.name || 'Un livreur'
+          );
+
+          if (edited) {
+            // Mettre à jour le statut en base
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase as any)
+              .from('telegram_notifications')
+              .update({ status: 'expired' })
+              .eq('id', notif.id);
+          }
+        }
+      }
+    }
+  }
 }
 
 /**
