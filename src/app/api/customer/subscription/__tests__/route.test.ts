@@ -25,7 +25,7 @@ const createChainableMock = (finalResult: unknown) => {
   return mock;
 };
 
-let mockCompanyResult = { data: { id: 'company-123', stripe_customer_id: 'cus_test' }, error: null };
+let mockCompanyResult: { data: { id: string; stripe_customer_id: string } | null; error: null } = { data: { id: 'company-123', stripe_customer_id: 'cus_test' }, error: null };
 let mockSubscriptionResult = { 
   data: { 
     id: 'sub-123',
@@ -58,7 +58,7 @@ import { GET, POST, DELETE } from '../route';
 import { cancelStripeSubscription } from '@/lib/stripe/server';
 
 // Helper to create mock NextRequest for GET/DELETE
-function createMockRequest(email: string | null, method: 'GET' | 'DELETE' = 'GET'): NextRequest {
+function createMockRequest(email: string | null): NextRequest {
   return {
     nextUrl: {
       searchParams: {
@@ -157,7 +157,7 @@ describe('Customer Subscription API', () => {
 
   describe('DELETE - Cancel subscription', () => {
     it('should return 400 when email is missing', async () => {
-      const request = createMockRequest(null, 'DELETE');
+      const request = createMockRequest(null);
       const response = await DELETE(request);
       const json = await response.json();
       
@@ -167,7 +167,7 @@ describe('Customer Subscription API', () => {
 
     it('should return 404 when company not found', async () => {
       mockCompanyResult = { data: null, error: null };
-      const request = createMockRequest('unknown@example.com', 'DELETE');
+      const request = createMockRequest('unknown@example.com');
       
       const response = await DELETE(request);
       const json = await response.json();
@@ -177,7 +177,7 @@ describe('Customer Subscription API', () => {
     });
 
     it('should call Stripe to cancel subscription', async () => {
-      const request = createMockRequest('test@example.com', 'DELETE');
+      const request = createMockRequest('test@example.com');
       
       const response = await DELETE(request);
       const json = await response.json();
@@ -189,7 +189,7 @@ describe('Customer Subscription API', () => {
     });
 
     it('should include message about period end', async () => {
-      const request = createMockRequest('test@example.com', 'DELETE');
+      const request = createMockRequest('test@example.com');
       
       const response = await DELETE(request);
       const json = await response.json();

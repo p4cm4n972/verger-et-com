@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Mock nodemailer
 type SendMailArgs = { to: string; subject: string; html: string; from: string };
-const mockSendMail: Mock<[SendMailArgs], Promise<{ messageId: string }>> = vi.fn(() =>
+const mockSendMail = vi.fn<(args: SendMailArgs) => Promise<{ messageId: string }>>(() =>
   Promise.resolve({ messageId: 'test-message-id' })
 );
 vi.mock('nodemailer', () => ({

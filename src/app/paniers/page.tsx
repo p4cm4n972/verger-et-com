@@ -139,7 +139,7 @@ export default function PaniersPage() {
               <span className="text-3xl">🔄</span>
             </div>
             <h2 className="text-2xl font-bold text-white mb-3">
-              Passez à l'abonnement hebdomadaire
+              Passez à l&apos;abonnement hebdomadaire
             </h2>
             <p className="text-foreground-muted mb-6 max-w-xl mx-auto">
               Recevez automatiquement vos paniers chaque semaine.

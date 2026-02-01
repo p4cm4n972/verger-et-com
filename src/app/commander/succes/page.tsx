@@ -83,7 +83,7 @@ export default function SuccessPage() {
               href="/"
               className="px-8 py-3 bg-fruit-green text-background font-semibold rounded-full hover:bg-fruit-green/90 transition-all"
             >
-              Retour à l'accueil
+              Retour à l&apos;accueil
             </Link>
             <Link
               href="/paniers"

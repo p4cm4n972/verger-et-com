@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState('');
@@ -78,9 +79,9 @@ export default function AdminLoginPage() {
         </form>
 
         <p className="text-center text-foreground-muted text-sm mt-6">
-          <a href="/" className="hover:text-white transition-colors">
+          <Link href="/" className="hover:text-white transition-colors">
             ← Retour au site
-          </a>
+          </Link>
         </p>
       </div>
     </div>

@@ -42,7 +42,7 @@ export default function CGVPage() {
             <section>
               <h2 className="text-2xl font-bold text-white mb-4">4. Prix et Paiement</h2>
               <p className="text-foreground-muted">
-                Les prix sont indiqués en euros TTC. Le paiement s'effectue en ligne par carte
+                Les prix sont indiqués en euros TTC. Le paiement s&apos;effectue en ligne par carte
                 bancaire via notre partenaire sécurisé Stripe. La livraison est offerte pour
                 toutes les commandes.
               </p>
@@ -69,8 +69,8 @@ export default function CGVPage() {
               <h2 className="text-2xl font-bold text-white mb-4">7. Données personnelles</h2>
               <p className="text-foreground-muted">
                 Les données collectées sont utilisées uniquement pour le traitement des commandes
-                et ne sont pas transmises à des tiers. Conformément au RGPD, vous disposez d'un
-                droit d'accès, de modification et de suppression de vos données.
+                et ne sont pas transmises à des tiers. Conformément au RGPD, vous disposez d&apos;un
+                droit d&apos;accès, de modification et de suppression de vos données.
               </p>
             </section>
           </div>

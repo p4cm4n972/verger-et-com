@@ -100,7 +100,7 @@ export function BasketDropZone({
             ) : (
               <>
                 Glissez vos fruits ici<br />
-                <span className="text-xs">ou cliquez sur un fruit pour l'ajouter</span>
+                <span className="text-xs">ou cliquez sur un fruit pour l&apos;ajouter</span>
               </>
             )}
           </p>

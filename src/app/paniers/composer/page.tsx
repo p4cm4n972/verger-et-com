@@ -22,7 +22,7 @@ export default function ComposerPage() {
           </h1>
           <p className="text-xl text-foreground-muted max-w-2xl mx-auto">
             Glissez-déposez vos fruits préférés pour créer le panier idéal.
-            Le prix s'ajuste automatiquement.
+            Le prix s&apos;ajuste automatiquement.
           </p>
         </div>
       </section>

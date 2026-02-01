@@ -14,9 +14,10 @@ import Stripe from 'stripe';
 export const runtime = 'nodejs';
 
 // Mapper fréquence Stripe → next_delivery_date
-function calculateNextDeliveryDate(frequency: 'weekly' | 'biweekly' | 'monthly'): string {
+// Note: frequency gardé pour compatibilité future, actuellement tous les abonnements sont hebdomadaires
+function calculateNextDeliveryDate(_frequency: 'weekly' | 'biweekly' | 'monthly'): string {
   const now = new Date();
-  let nextDate = new Date(now);
+  const nextDate = new Date(now);
 
   // Trouver le prochain lundi ou mardi
   const dayOfWeek = now.getDay();
