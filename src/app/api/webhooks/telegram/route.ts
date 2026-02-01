@@ -855,9 +855,9 @@ Merci pour ton travail ! 🍎
     parse_mode: 'HTML',
   });
 
-  // Envoyer l'email de confirmation au client
+  // Envoyer l'email de confirmation au client avec la photo de preuve
   if (customerEmail) {
-    await sendOrderStatusUpdateEmail(customerEmail, orderId, 'delivered');
+    await sendOrderStatusUpdateEmail(customerEmail, orderId, 'delivered', undefined, photoUrl);
   }
 }
 

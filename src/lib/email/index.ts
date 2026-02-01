@@ -178,7 +178,8 @@ export async function sendOrderStatusUpdateEmail(
   customerEmail: string,
   orderId: string,
   newStatus: string,
-  customerName?: string
+  customerName?: string,
+  deliveryProofUrl?: string
 ) {
   const statusMessages: Record<string, { emoji: string; title: string; message: string }> = {
     delivered: {
@@ -190,6 +191,25 @@ export async function sendOrderStatusUpdateEmail(
 
   const status = statusMessages[newStatus];
   if (!status) return;
+
+  // Section photo de preuve si disponible
+  const photoSection = deliveryProofUrl ? `
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+      <p style="font-size: 14px; color: #6b7280; margin-bottom: 15px; text-align: center;">
+        📸 <strong>Photo de livraison</strong>
+      </p>
+      <div style="text-align: center;">
+        <img
+          src="${deliveryProofUrl}"
+          alt="Preuve de livraison"
+          style="max-width: 100%; max-height: 400px; border-radius: 12px; border: 1px solid #e5e7eb;"
+        />
+      </div>
+      <p style="font-size: 12px; color: #9ca3af; margin-top: 10px; text-align: center;">
+        Cette photo a été prise par notre livreur lors de la remise de votre commande.
+      </p>
+    </div>
+  ` : '';
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -211,6 +231,7 @@ export async function sendOrderStatusUpdateEmail(
         <p style="font-size: 14px; color: #6b7280; margin-top: 20px;">
           Commande #${orderId.slice(0, 8)}
         </p>
+        ${photoSection}
       </div>
 
       <div style="text-align: center; padding: 20px;">
