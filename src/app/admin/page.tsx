@@ -71,6 +71,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    let isMounted = true;
     const supabase = createClient();
 
     // Subscription pour les commandes
@@ -84,6 +85,7 @@ export default function AdminPage() {
           table: 'orders',
         },
         (payload) => {
+          if (!isMounted) return;
           console.log('📦 Realtime orders event:', payload.eventType, payload);
 
           if (payload.eventType === 'INSERT') {
@@ -103,13 +105,14 @@ export default function AdminPage() {
         }
       )
       .subscribe((status, err) => {
+        if (!isMounted) return;
         console.log('📦 Orders channel status:', status, err);
         if (status === 'SUBSCRIBED') {
           setRealtimeStatus('connected');
           console.log('✅ Realtime connecté pour les commandes');
         } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
           setRealtimeStatus('disconnected');
-          console.error('❌ Erreur Realtime:', err);
+          if (err) console.error('❌ Erreur Realtime:', err);
         }
       });
 
@@ -125,6 +128,7 @@ export default function AdminPage() {
           filter: 'role=eq.driver',
         },
         (payload) => {
+          if (!isMounted) return;
           console.log('🚚 Realtime drivers:', payload.eventType);
           // Recharger la liste des livreurs pour avoir les relations
           fetchDrivers();
@@ -134,8 +138,18 @@ export default function AdminPage() {
 
     // Cleanup des subscriptions
     return () => {
-      supabase.removeChannel(ordersChannel);
-      supabase.removeChannel(driversChannel);
+      isMounted = false;
+      // Unsubscribe proprement avant de supprimer les channels
+      ordersChannel.unsubscribe().then(() => {
+        supabase.removeChannel(ordersChannel);
+      }).catch(() => {
+        // Ignorer les erreurs de déconnexion silencieusement
+      });
+      driversChannel.unsubscribe().then(() => {
+        supabase.removeChannel(driversChannel);
+      }).catch(() => {
+        // Ignorer les erreurs de déconnexion silencieusement
+      });
     };
   }, [isAuthenticated]);
 
