@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = "https://verger-et-com.vercel.app";
+const siteUrl = "https://vergercom.fr";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
