@@ -22,6 +22,51 @@ export const IDF_SECTORS = {
 
 export type SectorCode = keyof typeof IDF_SECTORS;
 
+// === SESSION DE PHOTO DE LIVRAISON (en mémoire - courte durée) ===
+export interface DeliveryPhotoSession {
+  orderId: string;
+  driverId: string;
+  customerEmail: string;
+  createdAt: number;
+}
+
+// Stockage en mémoire des sessions photo de livraison
+const photoSessions = new Map<string, DeliveryPhotoSession>();
+const PHOTO_SESSION_TTL = 5 * 60 * 1000; // 5 minutes
+
+// === GESTION DES SESSIONS PHOTO ===
+export function getDeliveryPhotoSession(chatId: string): DeliveryPhotoSession | null {
+  const session = photoSessions.get(chatId);
+  if (!session) return null;
+
+  if (Date.now() - session.createdAt > PHOTO_SESSION_TTL) {
+    photoSessions.delete(chatId);
+    return null;
+  }
+
+  return session;
+}
+
+export function setDeliveryPhotoSession(
+  chatId: string,
+  orderId: string,
+  driverId: string,
+  customerEmail: string
+): DeliveryPhotoSession {
+  const session: DeliveryPhotoSession = {
+    orderId,
+    driverId,
+    customerEmail,
+    createdAt: Date.now(),
+  };
+  photoSessions.set(chatId, session);
+  return session;
+}
+
+export function deleteDeliveryPhotoSession(chatId: string): void {
+  photoSessions.delete(chatId);
+}
+
 // === SESSION D'INSCRIPTION LIVREUR (en mémoire - courte durée) ===
 export interface DriverRegistrationSession {
   step: 'email' | 'name' | 'phone' | 'sector';

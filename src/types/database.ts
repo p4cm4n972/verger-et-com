@@ -66,6 +66,7 @@ export interface Database {
           delivery_date: string;
           delivery_address: string;
           notes: string | null;
+          delivery_proof_url: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -83,6 +84,7 @@ export interface Database {
           delivery_date: string;
           delivery_address: string;
           notes?: string | null;
+          delivery_proof_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -100,6 +102,7 @@ export interface Database {
           delivery_date?: string;
           delivery_address?: string;
           notes?: string | null;
+          delivery_proof_url?: string | null;
           created_at?: string;
           updated_at?: string;
         };

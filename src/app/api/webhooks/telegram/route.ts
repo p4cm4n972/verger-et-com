@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { sendOrderAcceptedConfirmation, sendTelegramMessage, editMessageForOrderTaken } from '@/lib/telegram';
+import { sendOrderAcceptedConfirmation, sendTelegramMessage, editMessageForOrderTaken, downloadTelegramPhoto } from '@/lib/telegram';
 import { sendOrderStatusUpdateEmail } from '@/lib/email';
 import {
   getSession,
@@ -16,11 +16,23 @@ import {
   consumeInviteToken,
   IDF_SECTORS,
   SectorCode,
+  getDeliveryPhotoSession,
+  setDeliveryPhotoSession,
+  deleteDeliveryPhotoSession,
 } from '@/lib/telegram/sessions';
+import { uploadDeliveryPhoto, ensureDeliveryPhotosBucket } from '@/lib/telegram/storage';
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'verger2024admin';
 const BOT_USERNAME = process.env.TELEGRAM_BOT_USERNAME || 'VergerEtComBot';
+
+interface TelegramPhotoSize {
+  file_id: string;
+  file_unique_id: string;
+  width: number;
+  height: number;
+  file_size?: number;
+}
 
 interface TelegramUpdate {
   update_id: number;
@@ -45,6 +57,7 @@ interface TelegramUpdate {
       id: number;
     };
     text?: string;
+    photo?: TelegramPhotoSize[];
     from: {
       id: number;
       first_name: string;
@@ -65,7 +78,12 @@ export async function POST(request: NextRequest) {
       await handleCallbackQuery(update.callback_query);
     }
 
-    if (update.message?.text) {
+    // Gérer les photos (pour les preuves de livraison)
+    if (update.message?.photo) {
+      await handlePhotoMessage(update.message);
+    }
+    // Gérer les messages texte
+    else if (update.message?.text) {
       await handleMessage(update.message);
     }
 
@@ -157,6 +175,31 @@ Générer une invitation: <code>/invite motdepasse</code>
       text: '❌ Inscription annulée.',
       parse_mode: 'HTML',
     });
+    return;
+  }
+
+  // Commande /cancel_photo
+  if (text === '/cancel_photo') {
+    const photoSession = getDeliveryPhotoSession(chatId);
+    if (photoSession) {
+      deleteDeliveryPhotoSession(chatId);
+      await sendTelegramMessage({
+        chat_id: chatId,
+        text: `
+❌ <b>Validation annulée</b>
+
+La demande de photo a été annulée.
+Tu peux réessayer en cliquant sur "Valider la livraison".
+        `.trim(),
+        parse_mode: 'HTML',
+      });
+    } else {
+      await sendTelegramMessage({
+        chat_id: chatId,
+        text: '❌ Aucune validation de livraison en cours.',
+        parse_mode: 'HTML',
+      });
+    }
     return;
   }
 
@@ -628,7 +671,7 @@ async function handleRefuseOrder(
 }
 
 /**
- * Valider une livraison
+ * Valider une livraison - Étape 1: Demander une photo de preuve
  */
 async function handleDeliverOrder(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -672,16 +715,132 @@ async function handleDeliverOrder(
     return;
   }
 
+  // Créer une session de photo de livraison
+  setDeliveryPhotoSession(chatId, orderId, driver.id, order.customer_email || '');
+
+  await answerCallbackQuery(callbackId, '📸 Envoie une photo de preuve');
+
+  await sendTelegramMessage({
+    chat_id: chatId,
+    text: `
+📸 <b>Photo de preuve requise</b>
+
+Commande #${orderId.slice(0, 8)}
+
+Envoie une photo montrant le panier livré.
+Cette photo servira de preuve de livraison.
+
+⏰ Tu as <b>5 minutes</b> pour envoyer la photo.
+
+Tape /cancel_photo pour annuler.
+    `.trim(),
+    parse_mode: 'HTML',
+  });
+}
+
+/**
+ * Gère la réception d'une photo (pour les preuves de livraison)
+ */
+async function handlePhotoMessage(message: NonNullable<TelegramUpdate['message']>) {
+  const chatId = message.chat.id.toString();
+  const photos = message.photo;
+
+  if (!photos || photos.length === 0) {
+    return;
+  }
+
+  // Vérifier s'il y a une session de photo de livraison en cours
+  const photoSession = getDeliveryPhotoSession(chatId);
+
+  if (!photoSession) {
+    // Pas de session en cours, ignorer la photo
+    await sendTelegramMessage({
+      chat_id: chatId,
+      text: '📷 Photo reçue, mais aucune validation de livraison en cours.',
+      parse_mode: 'HTML',
+    });
+    return;
+  }
+
+  // Prendre la plus grande résolution disponible (dernier élément)
+  const largestPhoto = photos[photos.length - 1];
+
+  await sendTelegramMessage({
+    chat_id: chatId,
+    text: '⏳ Traitement de la photo en cours...',
+    parse_mode: 'HTML',
+  });
+
+  // Télécharger la photo depuis Telegram
+  const photoBuffer = await downloadTelegramPhoto(largestPhoto.file_id);
+
+  if (!photoBuffer) {
+    await sendTelegramMessage({
+      chat_id: chatId,
+      text: '❌ Erreur lors du téléchargement de la photo. Réessaie.',
+      parse_mode: 'HTML',
+    });
+    return;
+  }
+
+  // S'assurer que le bucket existe
+  await ensureDeliveryPhotosBucket();
+
+  // Uploader vers Supabase Storage
+  const photoUrl = await uploadDeliveryPhoto(photoSession.orderId, photoBuffer);
+
+  if (!photoUrl) {
+    await sendTelegramMessage({
+      chat_id: chatId,
+      text: '❌ Erreur lors de l\'enregistrement de la photo. Réessaie.',
+      parse_mode: 'HTML',
+    });
+    return;
+  }
+
+  // Finaliser la livraison avec la photo
+  await completeDeliveryWithPhoto(
+    chatId,
+    photoSession.orderId,
+    photoSession.customerEmail,
+    photoUrl
+  );
+
+  // Supprimer la session
+  deleteDeliveryPhotoSession(chatId);
+}
+
+/**
+ * Finalise la livraison avec l'URL de la photo de preuve
+ */
+async function completeDeliveryWithPhoto(
+  chatId: string,
+  orderId: string,
+  customerEmail: string,
+  photoUrl: string
+) {
+  const supabase = await createClient();
+
+  // Mettre à jour la commande avec le statut "delivered" et l'URL de la photo
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  const { error } = await (supabase as any)
     .from('orders')
     .update({
       status: 'delivered',
       delivered_at: new Date().toISOString(),
+      delivery_proof_url: photoUrl,
     })
     .eq('id', orderId);
 
-  await answerCallbackQuery(callbackId, '✅ Livraison validée !');
+  if (error) {
+    console.error('Erreur mise à jour commande:', error);
+    await sendTelegramMessage({
+      chat_id: chatId,
+      text: '❌ Erreur lors de la validation. Contacte l\'admin.',
+      parse_mode: 'HTML',
+    });
+    return;
+  }
 
   await sendTelegramMessage({
     chat_id: chatId,
@@ -689,13 +848,16 @@ async function handleDeliverOrder(
 🎉 <b>Livraison validée !</b>
 
 Commande #${orderId.slice(0, 8)} marquée comme livrée.
+📸 Photo de preuve enregistrée.
+
 Merci pour ton travail ! 🍎
     `.trim(),
     parse_mode: 'HTML',
   });
 
-  if (order.customer_email) {
-    await sendOrderStatusUpdateEmail(order.customer_email, orderId, 'delivered');
+  // Envoyer l'email de confirmation au client
+  if (customerEmail) {
+    await sendOrderStatusUpdateEmail(customerEmail, orderId, 'delivered');
   }
 }
 

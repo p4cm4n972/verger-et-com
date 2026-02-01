@@ -313,3 +313,72 @@ N'oublie pas de valider la livraison une fois terminée !
     reply_markup: { inline_keyboard: keyboard },
   });
 }
+
+// === GESTION DES PHOTOS DE LIVRAISON ===
+
+/**
+ * Récupère les informations d'un fichier Telegram
+ */
+export async function getTelegramFile(fileId: string): Promise<{ file_path: string } | null> {
+  if (!TELEGRAM_BOT_TOKEN) {
+    console.warn('TELEGRAM_BOT_TOKEN non configuré');
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${TELEGRAM_API_URL}/getFile`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ file_id: fileId }),
+    });
+
+    const result = await response.json();
+
+    if (!result.ok) {
+      console.error('Erreur Telegram getFile:', result);
+      return null;
+    }
+
+    return result.result;
+  } catch (error) {
+    console.error('Erreur récupération fichier Telegram:', error);
+    return null;
+  }
+}
+
+/**
+ * Télécharge une photo depuis l'API Telegram
+ * @param fileId - L'identifiant du fichier Telegram
+ * @returns Buffer contenant l'image ou null en cas d'erreur
+ */
+export async function downloadTelegramPhoto(fileId: string): Promise<Buffer | null> {
+  if (!TELEGRAM_BOT_TOKEN) {
+    console.warn('TELEGRAM_BOT_TOKEN non configuré');
+    return null;
+  }
+
+  try {
+    // 1. Récupérer le file_path via getFile
+    const fileInfo = await getTelegramFile(fileId);
+    if (!fileInfo?.file_path) {
+      console.error('Impossible de récupérer le chemin du fichier');
+      return null;
+    }
+
+    // 2. Télécharger le fichier depuis le CDN Telegram
+    const downloadUrl = `https://api.telegram.org/file/bot${TELEGRAM_BOT_TOKEN}/${fileInfo.file_path}`;
+    const response = await fetch(downloadUrl);
+
+    if (!response.ok) {
+      console.error('Erreur téléchargement photo Telegram:', response.status);
+      return null;
+    }
+
+    // 3. Convertir en Buffer
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.error('Erreur téléchargement photo Telegram:', error);
+    return null;
+  }
+}
