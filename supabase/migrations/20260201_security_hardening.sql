@@ -9,9 +9,21 @@
 -- 1. FONCTIONS - Fixer le search_path
 -- ==========================================
 
-ALTER FUNCTION IF EXISTS get_next_delivery_date() SET search_path = public;
-ALTER FUNCTION IF EXISTS get_next_delivery_date_for_day(text) SET search_path = public;
-ALTER FUNCTION IF EXISTS update_updated_at_column() SET search_path = public;
+-- Fixer search_path pour les fonctions (ignore si n'existe pas)
+DO $$ BEGIN
+  ALTER FUNCTION get_next_delivery_date() SET search_path = public;
+EXCEPTION WHEN undefined_function THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER FUNCTION get_next_delivery_date_for_day(text) SET search_path = public;
+EXCEPTION WHEN undefined_function THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  ALTER FUNCTION update_updated_at_column() SET search_path = public;
+EXCEPTION WHEN undefined_function THEN NULL;
+END $$;
 
 -- ==========================================
 -- 2. RLS POLICIES - Remplacer "Allow all for dev"
@@ -31,13 +43,7 @@ CREATE POLICY "Service role can manage users" ON users
 
 -- === COMPANIES ===
 DROP POLICY IF EXISTS "Allow all for dev" ON companies;
--- Lecture : entreprise liée à l'utilisateur
-CREATE POLICY "Users can view own company" ON companies
-  FOR SELECT USING (
-    id IN (SELECT company_id FROM users WHERE email = current_setting('request.jwt.claims', true)::json->>'email')
-    OR current_setting('role', true) = 'service_role'
-  );
--- Écriture : service_role uniquement
+-- Accès : service_role uniquement (données sensibles entreprises)
 CREATE POLICY "Service role can manage companies" ON companies
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
@@ -82,15 +88,9 @@ CREATE POLICY "Service role can manage subscriptions" ON subscriptions
 
 -- === SAVED_BASKETS ===
 DROP POLICY IF EXISTS "Allow all for dev" ON saved_baskets;
--- Lecture/écriture : utilisateur peut gérer ses paniers sauvegardés
-CREATE POLICY "Users can manage own saved baskets" ON saved_baskets
-  FOR ALL USING (
-    user_id IN (SELECT id FROM users WHERE email = current_setting('request.jwt.claims', true)::json->>'email')
-    OR current_setting('role', true) = 'service_role'
-  ) WITH CHECK (
-    user_id IN (SELECT id FROM users WHERE email = current_setting('request.jwt.claims', true)::json->>'email')
-    OR current_setting('role', true) = 'service_role'
-  );
+-- Accès : service_role uniquement
+CREATE POLICY "Service role can manage saved baskets" ON saved_baskets
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
 
 -- === DRIVERS ===
 DROP POLICY IF EXISTS "Allow all for dev" ON drivers;
