@@ -3,7 +3,7 @@
 // ==========================================
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createCheckoutSession, createSubscriptionCheckoutSession, getOrCreateStripeCustomer, LineItem } from '@/lib/stripe/server';
+import { createCheckoutSession, createSubscriptionCheckoutSession, getOrCreateStripeCustomer, createOneTimeCoupon, LineItem } from '@/lib/stripe/server';
 import { createClient } from '@/lib/supabase/server';
 
 // Prix Stripe par taille de panier (abonnements hebdomadaires uniquement)
@@ -42,6 +42,11 @@ interface CheckoutRequest {
   // Champs pour abonnement
   isSubscription?: boolean;
   subscriptionPlan?: 'discovery' | 'team' | 'enterprise'; // Taille du panier
+  // Code promo
+  promoCode?: string;
+  discountAmount?: number;
+  discountType?: 'percentage' | 'fixed';
+  discountValue?: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -57,6 +62,10 @@ export async function POST(request: NextRequest) {
       deliveryAddress,
       isSubscription,
       subscriptionPlan,
+      promoCode,
+      discountAmount,
+      discountType,
+      discountValue,
     } = body;
 
     if (!items || items.length === 0) {
@@ -116,6 +125,18 @@ export async function POST(request: NextRequest) {
       if (deliveryDay) metadata.deliveryDay = deliveryDay;
       if (deliveryDate) metadata.deliveryDate = deliveryDate;
       if (deliveryAddress) metadata.deliveryAddress = deliveryAddress;
+      if (promoCode) metadata.promoCode = promoCode;
+      if (discountAmount) metadata.discountAmount = discountAmount.toString();
+
+      // Créer un coupon Stripe si code promo (appliqué uniquement au 1er paiement)
+      let couponId: string | undefined;
+      if (promoCode && discountType && discountValue) {
+        couponId = await createOneTimeCoupon({
+          discountType,
+          discountValue,
+          promoCode,
+        });
+      }
 
       // Créer la session de checkout pour abonnement
       const session = await createSubscriptionCheckoutSession({
@@ -125,6 +146,7 @@ export async function POST(request: NextRequest) {
         metadata,
         successUrl: `${origin}/commander/succes?session_id={CHECKOUT_SESSION_ID}&subscription=true`,
         cancelUrl: `${origin}/commander?cancelled=true`,
+        couponId,
       });
 
       return NextResponse.json({ sessionId: session.id, url: session.url });
@@ -138,6 +160,16 @@ export async function POST(request: NextRequest) {
       amount: Math.round(item.price * 100), // Convertir en centimes
       quantity: item.quantity,
     }));
+
+    // Ajouter la réduction si code promo appliqué
+    if (promoCode && discountAmount && discountAmount > 0) {
+      lineItems.push({
+        name: `Réduction (${promoCode})`,
+        description: 'Code promo appliqué',
+        amount: -Math.round(discountAmount * 100), // Montant négatif en centimes
+        quantity: 1,
+      });
+    }
 
     // Métadonnées pour traitement post-paiement
     const metadata: Record<string, string> = {
@@ -155,6 +187,8 @@ export async function POST(request: NextRequest) {
     if (deliveryDay) metadata.deliveryDay = deliveryDay;
     if (deliveryDate) metadata.deliveryDate = deliveryDate;
     if (deliveryAddress) metadata.deliveryAddress = deliveryAddress;
+    if (promoCode) metadata.promoCode = promoCode;
+    if (discountAmount) metadata.discountAmount = discountAmount.toString();
 
     // Créer la session Stripe
     const session = await createCheckoutSession({

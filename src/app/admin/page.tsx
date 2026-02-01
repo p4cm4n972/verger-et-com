@@ -31,6 +31,20 @@ interface Driver {
   drivers: { current_zone: string | null }[] | null;
 }
 
+interface PromoCode {
+  id: string;
+  code: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  description: string | null;
+  max_uses: number | null;
+  current_uses: number;
+  min_order_amount: number;
+  expires_at: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
 const statusLabels: Record<string, { label: string; color: string }> = {
   pending: { label: 'En attente', color: 'bg-yellow-500/20 text-yellow-500' },
   confirmed: { label: 'Confirmée', color: 'bg-blue-500/20 text-blue-500' },
@@ -47,11 +61,21 @@ const driverStatusLabels: Record<string, { label: string; color: string }> = {
 export default function AdminPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [promoCodes, setPromoCodes] = useState<PromoCode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<string>('all');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'orders' | 'drivers'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'drivers' | 'promos'>('orders');
+  const [showPromoForm, setShowPromoForm] = useState(false);
+  const [promoForm, setPromoForm] = useState({
+    code: '',
+    discount_type: 'percentage' as 'percentage' | 'fixed',
+    discount_value: 10,
+    description: '',
+    max_uses: '',
+    expires_at: '',
+  });
   const [realtimeStatus, setRealtimeStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [snackbar, setSnackbar] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
@@ -176,6 +200,7 @@ export default function AdminPage() {
       setIsAuthenticated(true);
       fetchOrders();
       fetchDrivers();
+      fetchPromoCodes();
     } catch {
       router.push('/admin/login');
     }
@@ -194,6 +219,87 @@ export default function AdminPage() {
       setDrivers(data || []);
     } catch (err) {
       console.error('Erreur fetch drivers:', err);
+    }
+  };
+
+  const fetchPromoCodes = async () => {
+    try {
+      const token = sessionStorage.getItem('admin_token');
+      const response = await fetch('/api/admin/promo-codes', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPromoCodes(data.promoCodes || []);
+      }
+    } catch (err) {
+      console.error('Erreur fetch promo codes:', err);
+    }
+  };
+
+  const createPromoCode = async () => {
+    try {
+      const token = sessionStorage.getItem('admin_token');
+      const response = await fetch('/api/admin/promo-codes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          code: promoForm.code || undefined,
+          discount_type: promoForm.discount_type,
+          discount_value: promoForm.discount_value,
+          description: promoForm.description || undefined,
+          max_uses: promoForm.max_uses ? parseInt(promoForm.max_uses) : undefined,
+          expires_at: promoForm.expires_at || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur création');
+      }
+
+      setPromoCodes([data.promoCode, ...promoCodes]);
+      setShowPromoForm(false);
+      setPromoForm({
+        code: '',
+        discount_type: 'percentage',
+        discount_value: 10,
+        description: '',
+        max_uses: '',
+        expires_at: '',
+      });
+      showSnackbar(`Code ${data.promoCode.code} créé`, 'success');
+    } catch (err) {
+      showSnackbar(err instanceof Error ? err.message : 'Erreur création', 'error');
+    }
+  };
+
+  const togglePromoCode = async (id: string, currentStatus: boolean) => {
+    try {
+      const token = sessionStorage.getItem('admin_token');
+      const response = await fetch('/api/admin/promo-codes', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ id, is_active: !currentStatus }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur mise à jour');
+      }
+
+      setPromoCodes(promoCodes.map(p =>
+        p.id === id ? { ...p, is_active: !currentStatus } : p
+      ));
+      showSnackbar(currentStatus ? 'Code désactivé' : 'Code activé', 'success');
+    } catch (err) {
+      showSnackbar(err instanceof Error ? err.message : 'Erreur', 'error');
     }
   };
 
@@ -554,6 +660,16 @@ export default function AdminPage() {
               }`}
             >
               🚚 Livreurs ({drivers.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('promos')}
+              className={`px-4 py-3 font-medium transition-colors border-b-2 ${
+                activeTab === 'promos'
+                  ? 'text-fruit-green border-fruit-green'
+                  : 'text-foreground-muted border-transparent hover:text-white'
+              }`}
+            >
+              🏷️ Codes Promo ({promoCodes.length})
             </button>
           </div>
         </div>
@@ -1008,6 +1124,176 @@ export default function AdminPage() {
                             .reduce((sum, o) => sum + (o.total - 10), 0)}€
                         </div>
                         <div className="text-xs text-foreground-muted">Solde dû</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Promo Codes Tab */}
+        {activeTab === 'promos' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-white">Codes Promo</h2>
+              <button
+                onClick={() => setShowPromoForm(!showPromoForm)}
+                className="px-4 py-2 bg-fruit-green text-background font-medium rounded-lg hover:bg-fruit-green/90 transition-colors"
+              >
+                {showPromoForm ? '✕ Annuler' : '+ Nouveau code'}
+              </button>
+            </div>
+
+            {/* Formulaire de création */}
+            {showPromoForm && (
+              <div className="bg-background-card rounded-xl p-6 border border-border">
+                <h3 className="text-lg font-bold text-white mb-4">Créer un code promo</h3>
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm text-foreground-muted mb-1">
+                      Code (laisser vide pour générer)
+                    </label>
+                    <input
+                      type="text"
+                      value={promoForm.code}
+                      onChange={(e) => setPromoForm({ ...promoForm, code: e.target.value.toUpperCase() })}
+                      placeholder="Ex: BIENVENUE20"
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white focus:border-fruit-green focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-foreground-muted mb-1">Description</label>
+                    <input
+                      type="text"
+                      value={promoForm.description}
+                      onChange={(e) => setPromoForm({ ...promoForm, description: e.target.value })}
+                      placeholder="Ex: Offre de bienvenue"
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white focus:border-fruit-green focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-foreground-muted mb-1">Type de réduction</label>
+                    <select
+                      value={promoForm.discount_type}
+                      onChange={(e) => setPromoForm({ ...promoForm, discount_type: e.target.value as 'percentage' | 'fixed' })}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white focus:border-fruit-green focus:outline-none"
+                    >
+                      <option value="percentage">Pourcentage (%)</option>
+                      <option value="fixed">Montant fixe (€)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-foreground-muted mb-1">
+                      Valeur ({promoForm.discount_type === 'percentage' ? '%' : '€'})
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max={promoForm.discount_type === 'percentage' ? 100 : undefined}
+                      value={promoForm.discount_value}
+                      onChange={(e) => setPromoForm({ ...promoForm, discount_value: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white focus:border-fruit-green focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-foreground-muted mb-1">
+                      Utilisations max (vide = illimité)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={promoForm.max_uses}
+                      onChange={(e) => setPromoForm({ ...promoForm, max_uses: e.target.value })}
+                      placeholder="Illimité"
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white focus:border-fruit-green focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-foreground-muted mb-1">
+                      Date d&apos;expiration (optionnel)
+                    </label>
+                    <input
+                      type="date"
+                      value={promoForm.expires_at}
+                      onChange={(e) => setPromoForm({ ...promoForm, expires_at: e.target.value })}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-white focus:border-fruit-green focus:outline-none"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={createPromoCode}
+                    className="px-6 py-2 bg-fruit-green text-background font-medium rounded-lg hover:bg-fruit-green/90 transition-colors"
+                  >
+                    Créer le code
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Liste des codes */}
+            {promoCodes.length === 0 ? (
+              <div className="text-center py-12 bg-background-card rounded-xl border border-border">
+                <div className="text-4xl mb-4">🏷️</div>
+                <p className="text-foreground-muted">Aucun code promo créé</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {promoCodes.map((promo) => (
+                  <div
+                    key={promo.id}
+                    className={`bg-background-card rounded-xl p-4 border ${
+                      promo.is_active ? 'border-border' : 'border-red-500/30 opacity-60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="px-3 py-1 bg-fruit-green/20 rounded-lg">
+                          <span className="font-mono font-bold text-fruit-green">{promo.code}</span>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-white font-medium">
+                              {promo.discount_type === 'percentage'
+                                ? `-${promo.discount_value}%`
+                                : `-${promo.discount_value}€`}
+                            </span>
+                            {promo.description && (
+                              <span className="text-foreground-muted text-sm">• {promo.description}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-foreground-muted mt-1">
+                            <span>
+                              Utilisé: {promo.current_uses}{promo.max_uses ? `/${promo.max_uses}` : ''} fois
+                            </span>
+                            {promo.expires_at && (
+                              <span>
+                                Expire: {new Date(promo.expires_at).toLocaleDateString('fr-FR')}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          promo.is_active
+                            ? 'bg-green-500/20 text-green-500'
+                            : 'bg-red-500/20 text-red-500'
+                        }`}>
+                          {promo.is_active ? 'Actif' : 'Inactif'}
+                        </span>
+                        <button
+                          onClick={() => togglePromoCode(promo.id, promo.is_active)}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                            promo.is_active
+                              ? 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30'
+                              : 'bg-green-500/20 text-green-500 hover:bg-green-500/30'
+                          }`}
+                        >
+                          {promo.is_active ? 'Désactiver' : 'Activer'}
+                        </button>
                       </div>
                     </div>
                   </div>

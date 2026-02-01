@@ -51,6 +51,17 @@ export default function CommanderPage() {
   const [selectedDeliveryDay, setSelectedDeliveryDay] = useState<DeliveryDay | null>(null);
   const [isSubscription, setIsSubscription] = useState(true); // Activé par défaut
 
+  // Code promo
+  const [promoCode, setPromoCode] = useState('');
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [appliedPromo, setAppliedPromo] = useState<{
+    code: string;
+    discountType: 'percentage' | 'fixed';
+    discountValue: number;
+    discountAmount: number;
+  } | null>(null);
+
   // Calculer les options de livraison au chargement
   useEffect(() => {
     const options = getDeliveryOptions();
@@ -62,7 +73,53 @@ export default function CommanderPage() {
   }, []);
 
   const deliveryFee = 0; // Livraison offerte
-  const total = subtotal + deliveryFee;
+  const discountAmount = appliedPromo?.discountAmount || 0;
+  const total = Math.max(0, subtotal + deliveryFee - discountAmount);
+
+  // Fonction pour valider le code promo
+  const validatePromoCode = async () => {
+    if (!promoCode.trim()) return;
+
+    setPromoLoading(true);
+    setPromoError(null);
+
+    try {
+      const response = await fetch('/api/promo-codes/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: promoCode,
+          orderTotal: subtotal,
+          customerEmail: email || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.valid) {
+        setAppliedPromo({
+          code: data.code,
+          discountType: data.discountType,
+          discountValue: data.discountValue,
+          discountAmount: data.discountAmount,
+        });
+        setPromoCode('');
+        setPromoError(null);
+      } else {
+        setPromoError(data.error || 'Code invalide');
+      }
+    } catch {
+      setPromoError('Erreur de validation');
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  // Supprimer le code promo
+  const removePromoCode = () => {
+    setAppliedPromo(null);
+    setPromoError(null);
+  };
 
   // Détecter si le panier contient un panier personnalisé (custom)
   // Les paniers custom ne peuvent pas être en abonnement
@@ -131,6 +188,11 @@ export default function CommanderPage() {
           subscriptionPlan: isSubscription
             ? getSubscriptionPlan(cart.find(item => item.type === 'basket') || { productId: '' })
             : null,
+          // Code promo
+          promoCode: appliedPromo?.code || null,
+          discountAmount: appliedPromo?.discountAmount || 0,
+          discountType: appliedPromo?.discountType || null,
+          discountValue: appliedPromo?.discountValue || null,
         }),
       });
 
@@ -443,9 +505,59 @@ export default function CommanderPage() {
                       <span className="text-xs">Hebdo</span>
                     </div>
                   )}
+
+                  {/* Code promo */}
+                  {appliedPromo ? (
+                    <div className="bg-fruit-green/10 rounded-lg p-3">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <span className="text-fruit-green font-semibold">🏷️ {appliedPromo.code}</span>
+                          <p className="text-xs text-foreground-muted">
+                            {appliedPromo.discountType === 'percentage'
+                              ? `-${appliedPromo.discountValue}%`
+                              : `-${appliedPromo.discountValue}€`}
+                          </p>
+                        </div>
+                        <button
+                          onClick={removePromoCode}
+                          className="text-fruit-red hover:text-fruit-red/80 text-sm"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="flex justify-between text-fruit-green mt-2">
+                        <span>Réduction</span>
+                        <span>-{discountAmount.toFixed(2)}€</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={promoCode}
+                          onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+                          placeholder="Code promo"
+                          className="flex-1 px-3 py-2 bg-background border border-border rounded-lg text-white placeholder-foreground-muted text-sm focus:border-fruit-green focus:outline-none"
+                          onKeyDown={(e) => e.key === 'Enter' && validatePromoCode()}
+                        />
+                        <button
+                          onClick={validatePromoCode}
+                          disabled={promoLoading || !promoCode.trim()}
+                          className="px-4 py-2 bg-fruit-green/20 text-fruit-green rounded-lg text-sm font-semibold hover:bg-fruit-green/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {promoLoading ? '...' : 'OK'}
+                        </button>
+                      </div>
+                      {promoError && (
+                        <p className="text-fruit-red text-xs">{promoError}</p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="border-t border-border pt-3 flex justify-between">
                     <span className="font-bold text-white">Total</span>
-                    <span className="text-2xl font-bold text-fruit-green">{total}€</span>
+                    <span className="text-2xl font-bold text-fruit-green">{total.toFixed(2)}€</span>
                   </div>
                 </div>
 

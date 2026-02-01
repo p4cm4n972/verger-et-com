@@ -82,6 +82,35 @@ export async function getOrCreateStripeCustomer(email: string, name?: string): P
   return customer.id;
 }
 
+// Créer un coupon Stripe pour une réduction unique (premier paiement seulement)
+export async function createOneTimeCoupon({
+  discountType,
+  discountValue,
+  promoCode,
+}: {
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  promoCode: string;
+}): Promise<string> {
+  const couponData: Stripe.CouponCreateParams = {
+    duration: 'once', // Appliquer une seule fois (premier paiement)
+    name: `Promo ${promoCode}`,
+    metadata: {
+      promo_code: promoCode,
+    },
+  };
+
+  if (discountType === 'percentage') {
+    couponData.percent_off = discountValue;
+  } else {
+    couponData.amount_off = Math.round(discountValue * 100); // En centimes
+    couponData.currency = 'eur';
+  }
+
+  const coupon = await stripe.coupons.create(couponData);
+  return coupon.id;
+}
+
 // Créer une session de checkout pour abonnement avec customerId
 export async function createSubscriptionCheckoutSession({
   priceId,
@@ -90,6 +119,7 @@ export async function createSubscriptionCheckoutSession({
   metadata,
   successUrl,
   cancelUrl,
+  couponId,
 }: {
   priceId: string;
   customerId?: string;
@@ -97,8 +127,9 @@ export async function createSubscriptionCheckoutSession({
   metadata?: Record<string, string>;
   successUrl: string;
   cancelUrl: string;
+  couponId?: string; // Coupon pour réduction sur le premier paiement
 }) {
-  const session = await stripe.checkout.sessions.create({
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     payment_method_types: ['card'],
     line_items: [
       {
@@ -117,7 +148,14 @@ export async function createSubscriptionCheckoutSession({
     cancel_url: cancelUrl,
     locale: 'fr',
     billing_address_collection: 'required',
-  });
+  };
+
+  // Ajouter le coupon si présent (réduction sur premier paiement uniquement)
+  if (couponId) {
+    sessionParams.discounts = [{ coupon: couponId }];
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionParams);
 
   return session;
 }
