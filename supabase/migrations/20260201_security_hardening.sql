@@ -9,21 +9,10 @@
 -- 1. FONCTIONS - Fixer le search_path
 -- ==========================================
 
--- Fixer search_path pour les fonctions (ignore si n'existe pas)
-DO $$ BEGIN
-  ALTER FUNCTION get_next_delivery_date() SET search_path = public;
-EXCEPTION WHEN undefined_function THEN NULL;
-END $$;
-
-DO $$ BEGIN
-  ALTER FUNCTION get_next_delivery_date_for_day(text) SET search_path = public;
-EXCEPTION WHEN undefined_function THEN NULL;
-END $$;
-
-DO $$ BEGIN
-  ALTER FUNCTION update_updated_at_column() SET search_path = public;
-EXCEPTION WHEN undefined_function THEN NULL;
-END $$;
+-- Fixer search_path pour les fonctions
+ALTER FUNCTION get_next_delivery_date(subscription_frequency, date) SET search_path = public;
+ALTER FUNCTION get_next_delivery_date_for_day(delivery_day, date) SET search_path = public;
+ALTER FUNCTION update_updated_at_column() SET search_path = public;
 
 -- ==========================================
 -- 2. RLS POLICIES - Remplacer "Allow all for dev"
