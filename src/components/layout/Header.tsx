@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { Logo } from '@/components/ui/Logo';
 import { useCart } from '@/lib/cart/CartContext';
@@ -17,7 +17,13 @@ const navLinks = [
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const { itemCount } = useCart();
+
+  // Marquer comme monté après hydratation pour éviter le mismatch SSR/client
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Préfetcher les routes critiques au chargement
   usePrefetchRoutes();
@@ -53,7 +59,7 @@ export function Header() {
           >
             <span>🧺</span>
             <span>Commander</span>
-            {itemCount > 0 && (
+            {isMounted && itemCount > 0 && (
               <span className="absolute -top-2 -right-2 w-5 h-5 bg-fruit-orange text-white text-xs font-bold rounded-full flex items-center justify-center">
                 {itemCount}
               </span>
@@ -109,7 +115,7 @@ export function Header() {
           >
             <span>🧺</span>
             <span>Commander</span>
-            {itemCount > 0 && (
+            {isMounted && itemCount > 0 && (
               <span className="absolute -top-2 -right-2 w-6 h-6 bg-fruit-orange text-white text-sm font-bold rounded-full flex items-center justify-center">
                 {itemCount}
               </span>
