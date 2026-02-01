@@ -293,6 +293,69 @@ export default function AdminPage() {
     }
   };
 
+  // Suspendre/réactiver un livreur
+  const toggleDriverStatus = async (driverId: string, currentStatus: boolean) => {
+    try {
+      const token = sessionStorage.getItem('admin_token');
+      const response = await fetch('/api/admin/drivers', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          id: driverId,
+          is_active: !currentStatus,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur de mise à jour');
+      }
+
+      // Mettre à jour l'état local
+      setDrivers(drivers.map(driver =>
+        driver.id === driverId
+          ? { ...driver, is_active: !currentStatus }
+          : driver
+      ));
+
+      showSnackbar(
+        currentStatus ? 'Livreur suspendu' : 'Livreur réactivé',
+        'success'
+      );
+    } catch (err) {
+      showSnackbar(err instanceof Error ? err.message : 'Erreur de mise à jour', 'error');
+    }
+  };
+
+  // Supprimer un livreur
+  const deleteDriver = async (driverId: string, driverName: string) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer le livreur ${driverName} ? Cette action est irréversible.`)) {
+      return;
+    }
+
+    try {
+      const token = sessionStorage.getItem('admin_token');
+      const response = await fetch(`/api/admin/drivers?id=${driverId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur de suppression');
+      }
+
+      // Retirer de l'état local
+      setDrivers(drivers.filter(driver => driver.id !== driverId));
+      showSnackbar('Livreur supprimé', 'success');
+    } catch (err) {
+      showSnackbar(err instanceof Error ? err.message : 'Erreur de suppression', 'error');
+    }
+  };
+
   const filteredOrders = filter === 'all'
     ? orders
     : orders.filter(order => order.status === filter);
@@ -880,6 +943,23 @@ export default function AdminPage() {
                         }`}>
                           {driver.is_active ? '✓ Actif' : '✗ Inactif'}
                         </span>
+                        {/* Boutons d'action */}
+                        <button
+                          onClick={() => toggleDriverStatus(driver.id, driver.is_active)}
+                          className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                            driver.is_active
+                              ? 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30'
+                              : 'bg-green-500/20 text-green-500 hover:bg-green-500/30'
+                          }`}
+                        >
+                          {driver.is_active ? '⏸ Suspendre' : '▶ Réactiver'}
+                        </button>
+                        <button
+                          onClick={() => deleteDriver(driver.id, driver.name)}
+                          className="px-3 py-1 rounded-lg text-xs font-medium bg-red-500/20 text-red-500 hover:bg-red-500/30 transition-colors"
+                        >
+                          🗑 Supprimer
+                        </button>
                       </div>
                     </div>
                     {/* Stats du livreur */}
