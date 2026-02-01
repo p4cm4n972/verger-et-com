@@ -19,6 +19,7 @@ interface Order {
   preferred_delivery_day: 'monday' | 'tuesday' | null;
   assigned_driver_id: string | null;
   driver_status: 'pending' | 'accepted' | 'refused' | null;
+  delivery_proof_url: string | null;
 }
 
 interface Driver {
@@ -80,6 +81,7 @@ export default function AdminPage() {
   const [snackbar, setSnackbar] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [showDetailedStats, setShowDetailedStats] = useState(false);
   const [deleteModal, setDeleteModal] = useState<{ id: string; name: string } | null>(null);
+  const [photoModal, setPhotoModal] = useState<{ url: string; orderId: string } | null>(null);
   const router = useRouter();
 
   // Fonction pour afficher un snackbar
@@ -985,6 +987,18 @@ export default function AdminPage() {
                       {order.notes && (
                         <p className="text-xs opacity-70">💬 {order.notes}</p>
                       )}
+                      {/* Photo de preuve de livraison */}
+                      {order.status === 'delivered' && order.delivery_proof_url && (
+                        <button
+                          onClick={() => setPhotoModal({ url: order.delivery_proof_url!, orderId: order.id })}
+                          className="mt-2 inline-flex items-center gap-1 px-3 py-1 bg-fruit-green/20 text-fruit-green rounded-lg text-xs font-medium hover:bg-fruit-green/30 transition-colors"
+                        >
+                          📸 Voir preuve de livraison
+                        </button>
+                      )}
+                      {order.status === 'delivered' && !order.delivery_proof_url && (
+                        <p className="mt-2 text-xs text-yellow-500/70">⚠️ Pas de photo de preuve</p>
+                      )}
                     </div>
                   </div>
 
@@ -1331,6 +1345,52 @@ export default function AdminPage() {
               >
                 Supprimer
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modale photo de preuve de livraison */}
+      {photoModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+          onClick={() => setPhotoModal(null)}
+        >
+          <div
+            className="bg-background-card border border-border rounded-2xl p-4 max-w-2xl mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">
+                📸 Preuve de livraison #{photoModal.orderId.slice(0, 8)}
+              </h3>
+              <button
+                onClick={() => setPhotoModal(null)}
+                className="w-8 h-8 rounded-full bg-background flex items-center justify-center text-foreground-muted hover:text-white transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="relative rounded-xl overflow-hidden bg-black">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={photoModal.url}
+                alt={`Preuve de livraison pour la commande ${photoModal.orderId.slice(0, 8)}`}
+                className="max-w-full max-h-[70vh] mx-auto object-contain"
+              />
+            </div>
+            <div className="mt-4 flex justify-between items-center">
+              <p className="text-xs text-foreground-muted">
+                Cette photo sert de preuve légale de livraison
+              </p>
+              <a
+                href={photoModal.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-fruit-green/20 text-fruit-green rounded-lg text-sm font-medium hover:bg-fruit-green/30 transition-colors"
+              >
+                Ouvrir en grand ↗
+              </a>
             </div>
           </div>
         </div>
