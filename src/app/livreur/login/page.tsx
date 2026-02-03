@@ -72,7 +72,7 @@ export default function LivreurLoginPage() {
                   id="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="livreur@verger-et-com.fr"
+                  placeholder="livreur@vergercom.fr"
                   className="w-full px-4 py-3 bg-background border border-border rounded-xl text-white placeholder-foreground-muted focus:border-fruit-green focus:outline-none transition-colors"
                   required
                 />

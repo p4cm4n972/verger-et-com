@@ -66,8 +66,8 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <div className="font-medium text-white">Email</div>
-                      <a href="mailto:contact@verger-et-com.fr" className="text-fruit-green hover:underline">
-                        contact@verger-et-com.fr
+                      <a href="mailto:contact@vergercom.fr" className="text-fruit-green hover:underline">
+                        contact@vergercom.fr
                       </a>
                     </div>
                   </div>
@@ -78,8 +78,8 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <div className="font-medium text-white">Téléphone</div>
-                      <a href="tel:+33123456789" className="text-fruit-orange hover:underline">
-                        01 23 45 67 89
+                      <a href="tel:+33759612533" className="text-fruit-orange hover:underline">
+                        07 59 61 25 33
                       </a>
                     </div>
                   </div>
@@ -91,8 +91,8 @@ export default function ContactPage() {
                     <div>
                       <div className="font-medium text-white">Adresse</div>
                       <p className="text-foreground-muted">
-                        123 Avenue des Vergers<br />
-                        75001 Paris, France
+                        87 avenue Aristide Briand<br />
+                        92160 Antony, France
                       </p>
                     </div>
                   </div>

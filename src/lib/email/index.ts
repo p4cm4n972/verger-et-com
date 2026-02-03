@@ -122,7 +122,7 @@ export async function sendOrderConfirmationEmail(data: OrderEmailData) {
       <div style="background: #0a0a0a; padding: 30px 20px; text-align: center;">
         <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 120px; height: auto; margin-bottom: 15px;" />
         <p style="margin: 0 0 10px; color: #9ca3af; font-size: 14px;">
-          Une question ? Contactez-nous à contact@verger-et-com.fr
+          Une question ? Contactez-nous à contact@vergercom.fr
         </p>
         <p style="margin: 0; color: #6b7280; font-size: 12px;">
           Verger & Com - Fruits frais pour entreprises
@@ -330,7 +330,7 @@ export async function sendPaymentFailedEmail(data: PaymentFailedData) {
 
       <div style="background: #0a0a0a; padding: 20px; text-align: center; border-radius: 0 0 12px 12px;">
         <p style="color: #9ca3af; font-size: 14px; margin: 0 0 10px;">
-          Une question ? Contactez-nous à contact@verger-et-com.fr
+          Une question ? Contactez-nous à contact@vergercom.fr
         </p>
         <p style="color: #6b7280; font-size: 12px; margin: 0;">
           Verger & Com - Fruits frais pour entreprises

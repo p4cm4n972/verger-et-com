@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
 
     // Envoyer l'email à l'équipe Verger & Com
     const { error } = await resend.emails.send({
-      from: 'Verger & Com <contact@verger-et-com.fr>',
-      to: ['contact@verger-et-com.fr'],
+      from: 'Verger & Com <contact@vergercom.fr>',
+      to: ['contact@vergercom.fr'],
       replyTo: email,
       subject: `Nouveau message de ${name}${company ? ` (${company})` : ''}`,
       html: `
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
 
     // Envoyer un email de confirmation au client
     await resend.emails.send({
-      from: 'Verger & Com <contact@verger-et-com.fr>',
+      from: 'Verger & Com <contact@vergercom.fr>',
       to: [email],
       subject: 'Nous avons bien reçu votre message - Verger & Com',
       html: `
