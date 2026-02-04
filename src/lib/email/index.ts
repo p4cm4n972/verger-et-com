@@ -13,8 +13,8 @@ function getTransporter() {
   });
 }
 
-const FROM_EMAIL = process.env.BREVO_SENDER_EMAIL || 'contact@itmade.fr';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'contact@itmade.fr';
+const FROM_EMAIL = (process.env.BREVO_SENDER_EMAIL || 'contact@vergercom.fr').trim();
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'contact@vergercom.fr').trim();
 
 interface OrderEmailData {
   orderId: string;

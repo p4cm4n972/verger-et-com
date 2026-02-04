@@ -14,8 +14,8 @@ function getTransporter() {
   });
 }
 
-const FROM_EMAIL = process.env.BREVO_SENDER_EMAIL || 'contact@vergercom.fr';
-const CONTACT_EMAIL = process.env.ADMIN_EMAIL || 'contact@vergercom.fr';
+const FROM_EMAIL = (process.env.BREVO_SENDER_EMAIL || 'contact@vergercom.fr').trim();
+const CONTACT_EMAIL = (process.env.ADMIN_EMAIL || 'contact@vergercom.fr').trim();
 
 interface ContactRequest {
   name: string;
