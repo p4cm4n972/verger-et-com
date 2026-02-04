@@ -138,7 +138,7 @@ describe('Telegram Module', () => {
       const callBody = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(callBody.text).toContain('order-12');
       expect(callBody.text).toContain('Panier Découverte');
-      expect(callBody.text).toContain('45€');
+      expect(callBody.text).toContain('35€'); // 45€ - 10€ commission
       expect(callBody.text).toContain('Lundi');
     });
 

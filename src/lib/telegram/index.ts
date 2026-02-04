@@ -5,6 +5,9 @@
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}`;
 
+// Commission prélevée sur chaque commande (en euros)
+export const COMMISSION = 10;
+
 export interface TelegramMessage {
   chat_id: string;
   text: string;
@@ -104,7 +107,7 @@ ${orderData.deliveryAddress || 'À confirmer'}
 🛒 <b>Articles:</b>
 ${itemsList}
 
-💰 <b>Total:</b> ${orderData.total}€
+💰 <b>Total:</b> ${orderData.total - COMMISSION}€
 
 👤 <b>Client:</b> ${orderData.customerEmail}
 📞 <b>Tél:</b> ${orderData.customerPhone || 'Non renseigné'}
@@ -212,8 +215,7 @@ export async function sendOrderAssignedNotification(
 📍 <b>Adresse:</b>
 ${orderData.deliveryAddress || 'À confirmer'}
 
-💰 <b>Total:</b> ${orderData.total}€
-💵 <b>Ta part:</b> ${orderData.total - 10}€
+💰 <b>Total:</b> ${orderData.total - COMMISSION}€
 
 👤 <b>Client:</b> ${orderData.customerEmail}
 ${orderData.customerPhone ? `📞 <b>Tél:</b> ${orderData.customerPhone}` : ''}
