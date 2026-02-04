@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Créer la session du Customer Portal
-    const origin = request.headers.get('origin') || 'https://verger-et-com.vercel.app';
+    const origin = request.headers.get('origin') || 'https://vergercom.fr';
     const session = await createCustomerPortalSession({
       customerId: stripeCustomerId,
       returnUrl: `${origin}/mon-abonnement`,

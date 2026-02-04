@@ -6,8 +6,8 @@ export function OrganizationJsonLd() {
     "@context": "https://schema.org",
     "@type": "Organization",
     name: "Verger & Com",
-    url: "https://verger-et-com.vercel.app",
-    logo: "https://verger-et-com.vercel.app/logo.svg",
+    url: "https://vergercom.fr",
+    logo: "https://vergercom.fr/logo.svg",
     description:
       "Livraison de fruits frais de saison pour entreprises en Île-de-France",
     address: {
@@ -42,12 +42,12 @@ export function LocalBusinessJsonLd() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
-    "@id": "https://verger-et-com.vercel.app",
+    "@id": "https://vergercom.fr",
     name: "Verger & Com",
-    image: "https://verger-et-com.vercel.app/og-image.svg",
+    image: "https://vergercom.fr/og-image.svg",
     description:
       "Livraison de paniers de fruits frais pour entreprises. Fruits de saison, jus et fruits secs.",
-    url: "https://verger-et-com.vercel.app",
+    url: "https://vergercom.fr",
     priceRange: "€€",
     telephone: "+33759612533",
     email: "contact@vergercom.fr",
@@ -99,7 +99,7 @@ export function ProductJsonLd({ name, description, price, image }: ProductJsonLd
     "@type": "Product",
     name,
     description,
-    image: image || "https://verger-et-com.vercel.app/og-image.svg",
+    image: image || "https://vergercom.fr/og-image.svg",
     brand: {
       "@type": "Brand",
       name: "Verger & Com",

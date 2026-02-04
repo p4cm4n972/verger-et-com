@@ -70,7 +70,7 @@ export async function sendOrderConfirmationEmail(data: OrderEmailData) {
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
       <div style="background: #0a0a0a; padding: 30px 20px; text-align: center;">
-        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 200px; height: auto;" />
+        <img src="https://vergercom.fr/logo-email.png" alt="Verger & Com" style="max-width: 200px; height: auto;" />
       </div>
       <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px 20px; text-align: center;">
         <h1 style="color: #ffffff; margin: 0; font-size: 28px;">✅ Commande Confirmée !</h1>
@@ -120,7 +120,7 @@ export async function sendOrderConfirmationEmail(data: OrderEmailData) {
       </div>
 
       <div style="background: #0a0a0a; padding: 30px 20px; text-align: center;">
-        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 120px; height: auto; margin-bottom: 15px;" />
+        <img src="https://vergercom.fr/logo-email.png" alt="Verger & Com" style="max-width: 120px; height: auto; margin-bottom: 15px;" />
         <p style="margin: 0 0 10px; color: #9ca3af; font-size: 14px;">
           Une question ? Contactez-nous à contact@vergercom.fr
         </p>
@@ -143,7 +143,7 @@ export async function sendNewOrderNotificationEmail(data: OrderEmailData) {
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #0a0a0a; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0;">
-        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 180px; height: auto; margin-bottom: 20px;" />
+        <img src="https://vergercom.fr/logo-email.png" alt="Verger & Com" style="max-width: 180px; height: auto; margin-bottom: 20px;" />
         <h1 style="color: #22c55e; margin: 0;">🆕 Nouvelle Commande !</h1>
       </div>
 
@@ -162,7 +162,7 @@ export async function sendNewOrderNotificationEmail(data: OrderEmailData) {
         <pre style="background: #f9fafb; padding: 15px; border-radius: 8px; color: #374151; white-space: pre-wrap;">${itemsList}</pre>
 
         <div style="margin-top: 30px; text-align: center;">
-          <a href="https://verger-et-com.vercel.app/admin" style="display: inline-block; background: #22c55e; color: #ffffff; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+          <a href="https://vergercom.fr/admin" style="display: inline-block; background: #22c55e; color: #ffffff; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">
             Voir dans l'admin
           </a>
         </div>
@@ -214,7 +214,7 @@ export async function sendOrderStatusUpdateEmail(
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #0a0a0a; padding: 25px 20px; text-align: center; border-radius: 12px 12px 0 0;">
-        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 160px; height: auto;" />
+        <img src="https://vergercom.fr/logo-email.png" alt="Verger & Com" style="max-width: 160px; height: auto;" />
       </div>
       <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); padding: 30px 20px; text-align: center;">
         <div style="font-size: 50px; margin-bottom: 10px;">${status.emoji}</div>
@@ -250,7 +250,7 @@ export async function sendVerificationCodeEmail(email: string, code: string) {
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #0a0a0a; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0;">
-        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 180px; height: auto;" />
+        <img src="https://vergercom.fr/logo-email.png" alt="Verger & Com" style="max-width: 180px; height: auto;" />
       </div>
       <div style="background: #ffffff; padding: 40px 20px; border: 1px solid #e5e7eb; border-top: none;">
         <p style="font-size: 16px; color: #374151;">Bonjour,</p>
@@ -286,7 +286,7 @@ export async function sendPaymentFailedEmail(data: PaymentFailedData) {
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
       <div style="background: #0a0a0a; padding: 30px 20px; text-align: center; border-radius: 12px 12px 0 0;">
-        <img src="https://verger-et-com.vercel.app/logo-email.png" alt="Verger & Com" style="max-width: 180px; height: auto;" />
+        <img src="https://vergercom.fr/logo-email.png" alt="Verger & Com" style="max-width: 180px; height: auto;" />
       </div>
       <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 30px 20px; text-align: center;">
         <div style="font-size: 50px; margin-bottom: 10px;">⚠️</div>
@@ -322,7 +322,7 @@ export async function sendPaymentFailedEmail(data: PaymentFailedData) {
         `}
 
         <div style="margin-top: 30px; text-align: center;">
-          <a href="https://verger-et-com.vercel.app/mon-abonnement" style="display: inline-block; background: #22c55e; color: #ffffff; padding: 14px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+          <a href="https://vergercom.fr/mon-abonnement" style="display: inline-block; background: #22c55e; color: #ffffff; padding: 14px 30px; border-radius: 8px; text-decoration: none; font-weight: bold;">
             Mettre à jour mon paiement
           </a>
         </div>

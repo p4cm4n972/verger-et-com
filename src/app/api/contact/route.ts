@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
             </div>
 
             <p style="color: #6b7280; font-size: 12px; margin-top: 20px;">
-              Ce message a été envoyé via le formulaire de contact de verger-et-com.vercel.app
+              Ce message a été envoyé via le formulaire de contact de vergercom.fr
             </p>
           </div>
         `,
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
             <p style="color: #6b7280; font-size: 12px;">
               Verger & Com - Fruits frais pour entreprises<br>
-              <a href="https://verger-et-com.vercel.app" style="color: #22c55e;">verger-et-com.vercel.app</a>
+              <a href="https://vergercom.fr" style="color: #22c55e;">vergercom.fr</a>
             </p>
           </div>
         `,
