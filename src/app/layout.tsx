@@ -59,7 +59,7 @@ export const metadata: Metadata = {
       "Livraison de fruits frais de saison pour vos équipes. Paniers composés ou personnalisés, livrés directement dans vos locaux.",
     images: [
       {
-        url: "/og-image.svg",
+        url: "/og-image.png",
         width: 1200,
         height: 630,
         alt: "Verger & Com - Fruits frais pour entreprises",
@@ -71,11 +71,14 @@ export const metadata: Metadata = {
     title: "Verger & Com | Paniers de fruits frais pour entreprises",
     description:
       "Livraison de fruits frais de saison pour vos équipes. Paniers composés ou personnalisés.",
-    images: ["/og-image.svg"],
+    images: ["/og-image.png"],
   },
   icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/apple-icon.png", type: "image/png" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
   manifest: "/manifest.json",
   verification: {

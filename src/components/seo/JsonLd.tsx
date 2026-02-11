@@ -7,7 +7,7 @@ export function OrganizationJsonLd() {
     "@type": "Organization",
     name: "Verger & Com",
     url: "https://vergercom.fr",
-    logo: "https://vergercom.fr/logo.svg",
+    logo: "https://vergercom.fr/apple-icon.png",
     description:
       "Livraison de fruits frais de saison pour entreprises en Île-de-France",
     address: {
@@ -44,7 +44,7 @@ export function LocalBusinessJsonLd() {
     "@type": "LocalBusiness",
     "@id": "https://vergercom.fr",
     name: "Verger & Com",
-    image: "https://vergercom.fr/og-image.svg",
+    image: "https://vergercom.fr/og-image.png",
     description:
       "Livraison de paniers de fruits frais pour entreprises. Fruits de saison, jus et fruits secs.",
     url: "https://vergercom.fr",
@@ -99,7 +99,7 @@ export function ProductJsonLd({ name, description, price, image }: ProductJsonLd
     "@type": "Product",
     name,
     description,
-    image: image || "https://vergercom.fr/og-image.svg",
+    image: image || "https://vergercom.fr/og-image.png",
     brand: {
       "@type": "Brand",
       name: "Verger & Com",
