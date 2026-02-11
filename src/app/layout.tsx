@@ -82,7 +82,7 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   verification: {
-    google: "VOTRE_CODE_VERIFICATION_GOOGLE", // Remplacer par le code de Google Search Console
+    google: "l8coDgpRRrbjJaprG1igh5-PkdBXd4HF0BSoCu5chtA",
   },
 };
 
