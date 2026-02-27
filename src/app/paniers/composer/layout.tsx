@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { BreadcrumbJsonLd } from '@/components/seo/JsonLd';
 
 export const metadata: Metadata = {
   title: 'Composer votre panier de fruits',
@@ -33,5 +34,16 @@ export default function ComposerLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  return (
+    <>
+      <BreadcrumbJsonLd
+        items={[
+          { name: 'Accueil', url: 'https://vergercom.fr' },
+          { name: 'Paniers', url: 'https://vergercom.fr/paniers' },
+          { name: 'Composer votre panier', url: 'https://vergercom.fr/paniers/composer' },
+        ]}
+      />
+      {children}
+    </>
+  );
 }

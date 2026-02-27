@@ -13,6 +13,7 @@ Disallow: /admin/
 Disallow: /livreur/
 Disallow: /checkout/
 Disallow: /mon-abonnement/
+Disallow: /mes-commandes/
 
 # Bloquer les fichiers sensibles
 Disallow: /*.json$
