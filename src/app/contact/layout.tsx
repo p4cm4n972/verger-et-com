@@ -30,29 +30,34 @@ export const metadata: Metadata = {
 
 const faqs = [
   {
-    question: 'Dans quelles zones livrez-vous vos fruits ?',
+    question: 'Quels sont les jours de livraison ?',
     answer:
-      'Verger & Com livre en Île-de-France : Paris et les départements 92 (Hauts-de-Seine), 93 (Seine-Saint-Denis) et 94 (Val-de-Marne). La livraison est offerte sans minimum de commande.',
+      'Verger & Com livre le lundi et le mardi directement dans vos locaux en Île-de-France. Les commandes doivent être passées avant le vendredi soir pour être livrées la semaine suivante.',
   },
   {
-    question: 'Quelle est la fréquence de livraison disponible ?',
+    question: 'D\'où viennent vos fruits ?',
     answer:
-      'Nous proposons des livraisons hebdomadaires, bimensuelles ou mensuelles selon vos besoins. Vous pouvez aussi passer une commande ponctuelle sans engagement.',
+      'Nous approvisionnons nos fruits auprès des primeurs de votre secteur. Ce circuit court garantit une fraîcheur maximale et réduit significativement l\'empreinte carbone liée au transport.',
   },
   {
-    question: 'Peut-on personnaliser le contenu de son panier ?',
+    question: 'Comment fonctionne le paiement ?',
     answer:
-      'Oui, nous proposons des paniers composés (Petit, Moyen, Grand) mais aussi un configurateur en ligne pour composer votre panier sur mesure en choisissant les fruits de votre choix.',
+      'Le paiement s\'effectue entièrement en ligne, de façon sécurisée. Vous réglez votre commande ou votre abonnement directement sur notre site par carte bancaire.',
   },
   {
-    question: 'Quel est le délai pour passer une commande ?',
+    question: 'Y a-t-il une formule d\'abonnement ?',
     answer:
-      'Les commandes doivent être passées avant le vendredi soir pour une livraison la semaine suivante. Contactez-nous pour toute demande urgente.',
+      'Oui, nous proposons un abonnement hebdomadaire, bimensuel ou mensuel. L\'abonnement vous garantit une livraison régulière sans avoir à repasser commande, avec possibilité de modifier ou suspendre à tout moment.',
   },
   {
-    question: 'Les fruits sont-ils vraiment frais et de saison ?',
+    question: 'Peut-on personnaliser son panier ?',
     answer:
-      'Oui, nous sélectionnons uniquement des fruits frais de saison, approvisionnés directement auprès de producteurs. Les paniers varient selon les saisons pour garantir qualité et fraîcheur.',
+      'Absolument. En plus de nos paniers composés (Petit, Moyen, Grand), notre configurateur en ligne vous permet de composer votre panier sur mesure en sélectionnant les fruits de votre choix.',
+  },
+  {
+    question: 'Dans quelles zones livrez-vous ?',
+    answer:
+      'Verger & Com livre en Île-de-France : Paris et les départements limitrophes (92, 93, 94). La livraison est offerte.',
   },
 ];
 

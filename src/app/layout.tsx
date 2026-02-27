@@ -23,17 +23,19 @@ export const metadata: Metadata = {
     template: "%s | Verger & Com",
   },
   description:
-    "Livraison de fruits frais de saison pour vos équipes. Paniers composés ou personnalisés, livrés directement dans vos locaux. Livraison offerte en Île-de-France.",
+    "Livraison de fruits frais de saison le lundi et mardi pour vos équipes. Fruits des primeurs de votre secteur, paniers personnalisés, paiement en ligne et abonnement. Livraison offerte en Île-de-France.",
   keywords: [
-    "fruits frais",
+    "fruits frais entreprise",
     "panier de fruits",
-    "entreprise",
-    "livraison bureau",
-    "fruits de saison",
+    "livraison fruits bureau",
+    "livraison lundi mardi",
+    "primeurs fruits frais",
+    "abonnement fruits entreprise",
+    "paiement en ligne fruits",
     "bien-être au travail",
     "corbeille de fruits",
-    "Paris",
     "Île-de-France",
+    "Paris",
   ],
   authors: [{ name: "Verger & Com" }],
   creator: "Verger & Com",
@@ -56,7 +58,7 @@ export const metadata: Metadata = {
     siteName: "Verger & Com",
     title: "Verger & Com | Paniers de fruits frais pour entreprises",
     description:
-      "Livraison de fruits frais de saison pour vos équipes. Paniers composés ou personnalisés, livrés directement dans vos locaux.",
+      "Fruits des primeurs de votre secteur, livrés le lundi et mardi. Abonnement et paiement en ligne, livraison offerte en Île-de-France.",
     images: [
       {
         url: "/og-image.png",
@@ -70,7 +72,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Verger & Com | Paniers de fruits frais pour entreprises",
     description:
-      "Livraison de fruits frais de saison pour vos équipes. Paniers composés ou personnalisés.",
+      "Fruits des primeurs de votre secteur, livrés le lundi et mardi. Abonnement et paiement en ligne.",
     images: ["/og-image.png"],
   },
   icons: {

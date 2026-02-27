@@ -46,7 +46,7 @@ export function LocalBusinessJsonLd() {
     name: "Verger & Com",
     image: "https://vergercom.fr/og-image.png",
     description:
-      "Livraison de paniers de fruits frais pour entreprises. Fruits de saison, jus et fruits secs.",
+      "Livraison de paniers de fruits frais le lundi et mardi pour entreprises. Fruits des primeurs de votre secteur, jus et fruits secs. Abonnement et paiement en ligne. Livraison offerte en Île-de-France.",
     url: "https://vergercom.fr",
     priceRange: "€€",
     telephone: "+33759612533",
@@ -76,6 +76,11 @@ export function LocalBusinessJsonLd() {
         closes: "18:00",
       },
     ],
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "Livraison de fruits frais en entreprise",
+      description: "Livraisons le lundi et mardi. Fruits approvisionnés auprès des primeurs du secteur pour une fraîcheur maximale et une empreinte carbone réduite.",
+    },
   };
 
   return (
