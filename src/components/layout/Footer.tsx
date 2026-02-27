@@ -13,7 +13,7 @@ export function Footer() {
           <p className="text-foreground-subtle text-xs mt-1">
             Développé par{' '}
             <a
-              href="https://itmade.studio"
+              href="https://itmade.fr"
               target="_blank"
               rel="noopener noreferrer"
               className="text-fruit-green hover:underline"
