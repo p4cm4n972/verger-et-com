@@ -11,6 +11,9 @@ export const metadata: Metadata = {
     'jus orange entreprise',
     'boisson naturelle',
   ],
+  alternates: {
+    canonical: '/jus',
+  },
   openGraph: {
     title: 'Jus de fruits | Verger & Com',
     description: 'Jus de fruits 100% pur jus, pressés et naturels.',

@@ -1,5 +1,18 @@
+import type { Metadata } from 'next';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+
+export const metadata: Metadata = {
+  title: 'Conditions Générales de Vente',
+  description: 'Conditions Générales de Vente de Verger & Com pour la livraison de fruits frais en entreprise.',
+  alternates: {
+    canonical: '/cgv',
+  },
+  robots: {
+    index: true,
+    follow: false,
+  },
+};
 
 export default function CGVPage() {
   return (

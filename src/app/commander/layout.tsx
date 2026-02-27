@@ -4,6 +4,9 @@ export const metadata: Metadata = {
   title: 'Commander',
   description:
     'Finalisez votre commande de fruits frais. Livraison hebdomadaire ou ponctuelle en entreprise.',
+  alternates: {
+    canonical: '/commander',
+  },
   robots: {
     index: false,
     follow: false,

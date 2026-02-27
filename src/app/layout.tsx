@@ -81,6 +81,9 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   manifest: "/manifest.json",
+  alternates: {
+    canonical: "/",
+  },
   verification: {
     google: "l8coDgpRRrbjJaprG1igh5-PkdBXd4HF0BSoCu5chtA",
   },

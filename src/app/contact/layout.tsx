@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     'devis fruits entreprise',
     'livraison fruits Paris',
   ],
+  alternates: {
+    canonical: '/contact',
+  },
   openGraph: {
     title: 'Contact | Verger & Com',
     description: 'Contactez-nous pour un devis personnalisé.',

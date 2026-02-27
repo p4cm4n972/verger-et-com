@@ -11,6 +11,9 @@ export const metadata: Metadata = {
     'snack sain bureau',
     'fruits secs entreprise',
   ],
+  alternates: {
+    canonical: '/fruits-secs',
+  },
   openGraph: {
     title: 'Fruits secs | Verger & Com',
     description:

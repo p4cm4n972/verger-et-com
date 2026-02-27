@@ -11,6 +11,9 @@ export const metadata: Metadata = {
     'corbeille de fruits',
     'fruits de saison',
   ],
+  alternates: {
+    canonical: '/paniers',
+  },
   openGraph: {
     title: 'Paniers de fruits frais | Verger & Com',
     description:
