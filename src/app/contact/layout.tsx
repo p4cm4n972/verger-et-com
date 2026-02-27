@@ -16,6 +16,14 @@ export const metadata: Metadata = {
     title: 'Contact | Verger & Com',
     description: 'Contactez-nous pour un devis personnalisé.',
     type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Contactez Verger & Com pour un devis de livraison de fruits',
+      },
+    ],
   },
 };
 

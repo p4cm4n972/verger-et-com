@@ -19,6 +19,14 @@ export const metadata: Metadata = {
     description:
       'Mélanges de fruits secs et oléagineux pour une pause gourmande au bureau.',
     type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Fruits secs et mélanges énergétiques pour entreprises — Verger & Com',
+      },
+    ],
   },
 };
 

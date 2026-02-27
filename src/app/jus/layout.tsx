@@ -18,6 +18,14 @@ export const metadata: Metadata = {
     title: 'Jus de fruits | Verger & Com',
     description: 'Jus de fruits 100% pur jus, pressés et naturels.',
     type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Jus de fruits pressés et naturels — Verger & Com',
+      },
+    ],
   },
 };
 

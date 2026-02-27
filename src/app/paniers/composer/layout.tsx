@@ -17,6 +17,14 @@ export const metadata: Metadata = {
     title: 'Composer votre panier | Verger & Com',
     description: 'Composez votre panier de fruits personnalisé pour votre entreprise.',
     type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Composez votre panier de fruits personnalisé — Verger & Com',
+      },
+    ],
   },
 };
 

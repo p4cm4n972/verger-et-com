@@ -1,60 +1,50 @@
 import { MetadataRoute } from 'next';
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = 'https://vergercom.fr';
-  const lastModified = new Date();
+const baseUrl = 'https://vergercom.fr';
 
-  // Pages publiques indexables
-  const publicPages: MetadataRoute.Sitemap = [
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
     {
       url: baseUrl,
-      lastModified,
+      lastModified: new Date('2025-02-27'),
       changeFrequency: 'weekly',
       priority: 1,
     },
     {
       url: `${baseUrl}/paniers`,
-      lastModified,
+      lastModified: new Date('2025-02-27'),
       changeFrequency: 'weekly',
       priority: 0.9,
     },
     {
       url: `${baseUrl}/paniers/composer`,
-      lastModified,
+      lastModified: new Date('2025-02-27'),
       changeFrequency: 'weekly',
       priority: 0.85,
     },
     {
       url: `${baseUrl}/jus`,
-      lastModified,
+      lastModified: new Date('2025-02-27'),
       changeFrequency: 'weekly',
       priority: 0.8,
     },
     {
       url: `${baseUrl}/fruits-secs`,
-      lastModified,
+      lastModified: new Date('2025-02-27'),
       changeFrequency: 'weekly',
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/commander`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
-    {
       url: `${baseUrl}/contact`,
-      lastModified,
+      lastModified: new Date('2025-02-27'),
       changeFrequency: 'monthly',
       priority: 0.6,
     },
     {
       url: `${baseUrl}/cgv`,
-      lastModified,
+      lastModified: new Date('2025-01-01'),
       changeFrequency: 'yearly',
       priority: 0.3,
     },
   ];
-
-  return publicPages;
 }

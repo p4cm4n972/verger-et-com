@@ -19,6 +19,14 @@ export const metadata: Metadata = {
     description:
       'Découvrez nos paniers de fruits frais de saison pour entreprises.',
     type: 'website',
+    images: [
+      {
+        url: '/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'Paniers de fruits frais pour entreprises — Verger & Com',
+      },
+    ],
   },
 };
 
