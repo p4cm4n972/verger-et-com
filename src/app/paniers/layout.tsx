@@ -5,10 +5,12 @@ export const metadata: Metadata = {
   description:
     'Découvrez nos paniers de fruits frais de saison pour entreprises. Petit, Moyen ou Grand panier, livrés directement dans vos locaux en Île-de-France.',
   keywords: [
-    'panier de fruits',
-    'fruits frais entreprise',
+    'panier de fruits entreprise',
+    'fruits frais QVT',
     'livraison fruits bureau',
+    'avantages salariés fruits',
     'corbeille de fruits',
+    'CSE livraison fruits',
     'fruits de saison',
   ],
   alternates: {

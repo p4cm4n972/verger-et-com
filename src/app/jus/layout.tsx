@@ -5,11 +5,12 @@ export const metadata: Metadata = {
   description:
     'Jus de fruits 100% pur jus, pressés et naturels. Orange, pomme, multifruits en format 25cl ou 1L. Livraison en entreprise.',
   keywords: [
-    'jus de fruits',
-    'jus pressé',
-    'pur jus',
-    'jus orange entreprise',
-    'boisson naturelle',
+    'jus de fruits entreprise',
+    'boisson bien-être bureau',
+    'jus pressé naturel',
+    'pur jus livraison',
+    'avantages salariés boisson',
+    'QVT boisson saine',
   ],
   alternates: {
     canonical: '/jus',

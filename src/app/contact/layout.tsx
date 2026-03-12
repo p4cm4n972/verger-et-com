@@ -4,10 +4,12 @@ import { FAQJsonLd } from '@/components/seo/JsonLd';
 export const metadata: Metadata = {
   title: 'Contact',
   description:
-    'Contactez Verger & Com pour un devis personnalisé. Livraison de fruits frais en entreprise en Île-de-France.',
+    'DRH, CSE, responsables RH : contactez Verger & Com pour un devis livraison de fruits frais en entreprise. Un levier QVT simple, eco-responsable et flexible en Île-de-France.',
   keywords: [
-    'contact',
-    'devis fruits entreprise',
+    'contact DRH fruits entreprise',
+    'devis QVT livraison fruits',
+    'CSE fruits bureau',
+    'avantages salariés devis',
     'livraison fruits Paris',
   ],
   alternates: {
@@ -58,6 +60,11 @@ const faqs = [
     question: 'Dans quelles zones livrez-vous ?',
     answer:
       'Verger & Com livre en Île-de-France : Paris et les départements limitrophes (92, 93, 94). La livraison est offerte.',
+  },
+  {
+    question: 'En quoi la livraison de fruits améliore-t-elle la QVT ?',
+    answer:
+      'Offrir des fruits frais à ses salariés est un levier QVT concret et apprécié : meilleure concentration, réduction de la fatigue, sentiment de bien-être au travail. C\'est aussi un avantage en nature simple à mettre en place pour les DRH et CSE, géré intégralement en ligne avec un abonnement flexible.',
   },
 ];
 

@@ -23,17 +23,20 @@ export const metadata: Metadata = {
     template: "%s | Verger & Com",
   },
   description:
-    "Livraison de fruits frais de saison le lundi et mardi pour vos équipes. Fruits des primeurs de votre secteur, paniers personnalisés, paiement en ligne et abonnement. Livraison offerte en Île-de-France.",
+    "Livraison de fruits frais pour entreprises — levier QVT concret pour DRH et CSE. Fruits des primeurs de votre secteur, livrés le lundi et mardi. Abonnement, paiement en ligne, livraison offerte en Île-de-France.",
   keywords: [
-    "fruits frais entreprise",
-    "panier de fruits",
-    "livraison fruits bureau",
-    "livraison lundi mardi",
-    "primeurs fruits frais",
+    "QVT entreprise",
+    "qualité de vie au travail",
+    "bien-être salariés",
+    "avantages salariés",
+    "avantage en nature",
+    "DRH fruits bureau",
+    "CSE livraison fruits",
+    "livraison fruits entreprise",
+    "panier de fruits entreprise",
     "abonnement fruits entreprise",
-    "paiement en ligne fruits",
+    "primeurs fruits frais",
     "bien-être au travail",
-    "corbeille de fruits",
     "Île-de-France",
     "Paris",
   ],
@@ -58,7 +61,7 @@ export const metadata: Metadata = {
     siteName: "Verger & Com",
     title: "Verger & Com | Paniers de fruits frais pour entreprises",
     description:
-      "Fruits des primeurs de votre secteur, livrés le lundi et mardi. Abonnement et paiement en ligne, livraison offerte en Île-de-France.",
+      "Levier QVT pour DRH et CSE : fruits frais des primeurs de votre secteur, livrés le lundi et mardi en entreprise. Abonnement et paiement en ligne.",
     images: [
       {
         url: "/og-image.png",
@@ -72,7 +75,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Verger & Com | Paniers de fruits frais pour entreprises",
     description:
-      "Fruits des primeurs de votre secteur, livrés le lundi et mardi. Abonnement et paiement en ligne.",
+      "Levier QVT pour DRH et CSE : fruits frais livrés le lundi et mardi en entreprise. Abonnement et paiement en ligne.",
     images: ["/og-image.png"],
   },
   icons: {

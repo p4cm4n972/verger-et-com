@@ -5,11 +5,12 @@ export const metadata: Metadata = {
   description:
     'Mélanges de fruits secs et oléagineux pour une pause gourmande au bureau. Énergie, chocolat, exotique. Livraison en entreprise.',
   keywords: [
-    'fruits secs',
-    'mélange énergétique',
-    'oléagineux',
-    'snack sain bureau',
     'fruits secs entreprise',
+    'snack sain QVT',
+    'mélange énergétique bureau',
+    'avantages salariés snack',
+    'oléagineux bureau',
+    'bien-être salariés',
   ],
   alternates: {
     canonical: '/fruits-secs',

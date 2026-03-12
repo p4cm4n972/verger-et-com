@@ -302,6 +302,56 @@ export default function Home() {
         </div>
       </section>
 
+      {/* QVT - Section DRH / CSE */}
+      <section className="py-20 px-6 bg-gradient-to-b from-background-card to-background">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-fruit-green/10 text-fruit-green text-sm font-medium mb-4">
+              <span>💚</span>
+              <span>Qualité de Vie au Travail</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+              Un levier QVT simple et concret
+            </h2>
+            <p className="text-foreground-muted max-w-2xl mx-auto">
+              DRH, responsables RH, CSE : offrir des fruits frais à vos salariés est un avantage en nature accessible, apprécié et mesurable.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+            <div className="p-6 rounded-2xl bg-fruit-green/10 border border-fruit-green/20 text-center">
+              <div className="text-4xl mb-4">🧠</div>
+              <h3 className="text-lg font-bold text-white mb-2">Productivité</h3>
+              <p className="text-foreground-muted text-sm">Des salariés mieux nourris sont plus concentrés et plus performants au quotidien.</p>
+            </div>
+            <div className="p-6 rounded-2xl bg-fruit-orange/10 border border-fruit-orange/20 text-center">
+              <div className="text-4xl mb-4">❤️</div>
+              <h3 className="text-lg font-bold text-white mb-2">Bien-être salarial</h3>
+              <p className="text-foreground-muted text-sm">Un geste concret qui renforce le sentiment d&apos;appartenance et réduit l&apos;absentéisme.</p>
+            </div>
+            <div className="p-6 rounded-2xl bg-fruit-yellow/10 border border-fruit-yellow/20 text-center">
+              <div className="text-4xl mb-4">🌱</div>
+              <h3 className="text-lg font-bold text-white mb-2">Éco-responsable</h3>
+              <p className="text-foreground-muted text-sm">Fruits des primeurs de votre secteur : circuit court, empreinte carbone réduite, fraîcheur garantie.</p>
+            </div>
+            <div className="p-6 rounded-2xl bg-fruit-red/10 border border-fruit-red/20 text-center">
+              <div className="text-4xl mb-4">🎁</div>
+              <h3 className="text-lg font-bold text-white mb-2">Avantage en nature</h3>
+              <p className="text-foreground-muted text-sm">Un avantage en nature géré en ligne, avec abonnement flexible et sans contrainte administrative.</p>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link
+              href="/contact"
+              className="inline-block px-8 py-4 bg-gradient-to-r from-fruit-green to-fruit-green/80 text-background font-semibold rounded-full text-lg hover:opacity-90 transition-all shadow-lg shadow-fruit-green/20"
+            >
+              Demander un devis RH
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Final avec gradient coloré */}
       <section className="py-20 px-6 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-fruit-green/20 via-fruit-yellow/20 to-fruit-orange/20" />
